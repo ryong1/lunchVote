@@ -1,10 +1,19 @@
 /* ==========================================
    1. 초기 설정 및 전역 변수
    ========================================== */
-const socket = io();
 let isAdmin = false;
 let timerInterval = null;
 let tempMenus = [];
+let socket = null;
+
+// 후보별 색 팔레트 — img3 톤 (fill: 막대 배경 / edge: 점·막대 경계)
+const BAR_COLORS = [
+    { fill: '#F8D3E6', edge: '#E85BA0' }, // 핑크
+    { fill: '#D3EBF3', edge: '#6FB9DD' }, // 베이비 블루
+    { fill: '#E6F0C6', edge: '#9DBF44' }, // 라임
+    { fill: '#FBEFBE', edge: '#E5C53F' }, // 옐로
+    { fill: '#E6DAF2', edge: '#9A7DC8' }, // 라벤더
+];
 
 /** HTML 특수문자를 이스케이프해 XSS를 방지한다. */
 function escapeHtml(str) {
@@ -24,7 +33,15 @@ if (!roomId) {
     window.history.pushState({}, '', `?room=${roomId}`);
 }
 
-socket.emit('joinRoom', roomId);
+// socket.io 클라이언트가 로드된 경우에만 연결한다.
+// (Node 서버가 아닌 VS Code Live Server(:5500) 등으로 열면 /socket.io/socket.io.js 가 없어 io 가 undefined)
+if (typeof io !== 'undefined') {
+    socket = io();
+    socket.emit('joinRoom', roomId);
+} else {
+    console.error('[lunchVote] socket.io 를 불러오지 못했습니다. `npm start` 후 http://localhost:3000 으로 접속하세요. (Live Server(:5500)에서는 실시간 기능이 동작하지 않습니다.)');
+    socket = { on() {}, emit() {} }; // 스크립트가 중단되지 않도록 안전한 스텁
+}
 
 /* ==========================================
    2. 소켓 이벤트 리스너 (실시간 업데이트)
@@ -116,7 +133,7 @@ function renderTempList() {
     if (countSpan) countSpan.innerText = tempMenus.length;
 
     if (tempMenus.length === 0) {
-        listDiv.innerHTML = `<p class="empty-msg" style="color: var(--text-light); font-size: 13px; text-align: center; width: 100%; padding: 20px 0;">추가된 메뉴가 없습니다.</p>`;
+        listDiv.innerHTML = `<p class="empty-msg">추가된 메뉴가 없습니다.</p>`;
         return;
     }
 
@@ -156,7 +173,7 @@ function submitFinalVote() {
 
     // 2. 중요: 바로 showPage를 하지 않고 리스트 영역에 '로딩' 표시를 먼저 합니다.
     const listDiv = document.getElementById('menuList');
-    if (listDiv) listDiv.innerHTML = '<p class="empty-info">서버와 통신 중... 🚀</p>';
+    if (listDiv) listDiv.innerHTML = '<p class="empty-info">서버와 통신 중...</p>';
     
     // 3. 페이지는 일단 이동시키되, 실제 그림은 서버 응답(updateData)이 올 때 그려집니다.
     showPage('view-main');
@@ -193,7 +210,7 @@ function render(data, isFinished = false) {
     if (!listDiv) return;
 
     if (!data || !data.candidates || data.candidates.length === 0) {
-        listDiv.innerHTML = '<p class="empty-info">방장이 메뉴를 등록 중입니다... 🍱</p>';
+        listDiv.innerHTML = '<p class="empty-info">방장이 메뉴를 등록 중입니다...</p>';
         return;
     }
     
@@ -203,27 +220,43 @@ function render(data, isFinished = false) {
         sorted.sort((a, b) => (data.votes[b] || 0) - (data.votes[a] || 0));
     }
 
-    const maxVotes = data.votes ? Math.max(...Object.values(data.votes), 0) : 0;
-    
+    const voteValues = data.votes ? Object.values(data.votes) : [];
+    const maxVotes = Math.max(...voteValues, 0);
+    const totalVotes = voteValues.reduce((sum, v) => sum + v, 0);
+
+    // 후보별 고유 색을 등록 순서로 고정 (정렬돼도 색 유지)
+    const colorOf = {};
+    data.candidates.forEach((m, i) => { colorOf[m] = BAR_COLORS[i % BAR_COLORS.length]; });
+
     sorted.forEach(menu => {
         const votes = (data.votes && data.votes[menu]) || 0;
         const isWinner = isFinished && votes === maxVotes && maxVotes > 0;
         const isMyVote = data.userVotes && data.userVotes[socket.id] === menu;
-        
+        // 막대 너비: 최다 득표를 100% 기준으로 환산
+        const pct = maxVotes > 0 ? Math.round((votes / maxVotes) * 100) : 0;
+        const share = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+        const c = colorOf[menu] || BAR_COLORS[0];
+
         const safeMenu = escapeHtml(menu);
         const div = document.createElement('div');
-        div.className = `menu-item ${isWinner ? 'winner' : ''}`;
+        div.className = `menu-item ${isWinner ? 'winner' : ''} ${isMyVote ? 'voted' : ''}`;
+        div.style.cssText = `--fill:${c.fill};--edge:${c.edge}`;
         div.innerHTML = `
-            <div class="menu-info">
-                <span class="menu-name">${isWinner ? '👑 ' : ''}${safeMenu}</span>
-                <span class="vote-count">${votes}표</span>
-            </div>
-            <div class="vote-section">
-                ${!isFinished ? `
-                    <button class="btn-vote ${isMyVote ? '' : 'active'}" data-menu="${safeMenu}">
-                        ${isMyVote ? '취소' : '투표'}
-                    </button>
-                ` : ''}
+            <div class="menu-bar" style="width:${pct}%"></div>
+            <div class="menu-row">
+                <div class="menu-info">
+                    <span class="menu-dot"></span>
+                    <span class="menu-name">${safeMenu}</span>
+                    <span class="vote-share">${share}%</span>
+                </div>
+                <div class="vote-section">
+                    <span class="vote-count">${votes}표</span>
+                    ${!isFinished ? `
+                        <button class="btn-vote ${isMyVote ? 'voted' : 'active'}" data-menu="${safeMenu}">
+                            ${isMyVote ? '취소' : '투표'}
+                        </button>
+                    ` : ''}
+                </div>
             </div>
         `;
         listDiv.appendChild(div);
