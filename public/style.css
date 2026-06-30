@@ -536,7 +536,6 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
    ========================================== */
 /* 1위 리스트 행은 회색(은은), 강조는 위 배너에서만 */
 .menu-item.winner { background: #ECECEC; border-color: #D6D6D6; }
-.menu-item.winner .menu-bar { background: #CFCFCF; opacity: 0.4; }
 .menu-item.winner .menu-name { color: var(--ink); }
 .menu-item.winner .vote-count { color: var(--text-mid); }
 
@@ -635,18 +634,6 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
     border-radius: 10px;
 }
 
-/* 시간 종료(대기) 안내 */
-.timeup-notice {
-    background: var(--cream);
-    border: 1.5px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 12px 14px;
-    margin: 4px 0 8px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-mid);
-    text-align: center;
-}
 
 /* 시간 연장 패널 (방장, 종료 시) */
 .extend-card { border-color: var(--mint-deep); }

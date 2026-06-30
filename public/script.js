@@ -76,11 +76,25 @@ if (!roomId) {
     window.history.pushState({}, '', `?room=${roomId}`);
 }
 
+// 재접속해도 유지되는 투표자 식별자 (브라우저에 저장 → 나갔다 들어와도 같은 사람)
+let voterId;
+try {
+    voterId = localStorage.getItem('voterId');
+    if (!voterId) {
+        voterId = 'v_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('voterId', voterId);
+    }
+} catch (e) {
+    voterId = 'v_' + Math.random().toString(36).slice(2);
+}
+
+let myVote = null; // 내가 투표한 항목
+
 // socket.io 클라이언트가 로드된 경우에만 연결한다.
 // (Node 서버가 아닌 VS Code Live Server(:5500) 등으로 열면 /socket.io/socket.io.js 가 없어 io 가 undefined)
 if (typeof io !== 'undefined') {
     socket = io();
-    socket.emit('joinRoom', roomId);
+    socket.emit('joinRoom', { roomId, voterId });
 } else {
     console.error('[lunchVote] socket.io 를 불러오지 못했습니다. `npm start` 후 http://localhost:3000 으로 접속하세요. (Live Server(:5500)에서는 실시간 기능이 동작하지 않습니다.)');
     socket = { on() {}, emit() {} }; // 스크립트가 중단되지 않도록 안전한 스텁
@@ -92,10 +106,12 @@ if (typeof io !== 'undefined') {
 
 socket.on('initData', (data) => {
     isAdmin = data.isAdmin;
-    
+    myVote = data.myVote || null; // 재접속 시 이전 투표 복원
+
+    // 시간 설정(휠)은 누구나 새 투표를 만들 수 있도록 항상 표시
     const adminBox = document.getElementById('admin-controls');
-    if (adminBox) adminBox.style.display = isAdmin ? 'block' : 'none';
-    if (isAdmin) requestAnimationFrame(syncTimeWheels);
+    if (adminBox) adminBox.style.display = 'block';
+    requestAnimationFrame(syncTimeWheels);
 
     const linkPreview = document.getElementById('currentLink');
     if (linkPreview) linkPreview.innerText = window.location.href;
@@ -273,6 +289,8 @@ function submitFinalVote() {
 
 function castVote(menuName) {
     socket.emit('castVote', { roomId, menuName });
+    // 서버 로직과 동일하게 내 투표 상태를 즉시 반영(같은 항목=취소)
+    myVote = (myVote === menuName) ? null : menuName;
 }
 
 // 투표 시간 연장 (방장)
@@ -319,9 +337,15 @@ function render(data, isFinished = false) {
     const timeUp = !!(data && data.timeUp) && !finished;           // 시간만 종료(대기)
     const closed = finished || timeUp;                              // 투표 마감 상태
 
-    // 마감 시 타이머 숨김, 시간종료(대기) 시 방장에게 연장/종료 패널
-    const timerCard = document.getElementById('timer-card');
-    if (timerCard) timerCard.style.display = closed ? 'none' : '';
+    // 진행 중인 투표 여부
+    const active = !!(data && data.candidates && data.candidates.length > 0) && !closed;
+    // "+ 투표 등록": 방장은 항상, 비방장은 투표 진행 중일 때만 숨김(종료 후/대기 전엔 표시)
+    const addBtn = document.querySelector('.btn-add-top');
+    if (addBtn) addBtn.style.display = (isAdmin || !active) ? '' : 'none';
+
+    // 마감 시 카운트다운만 숨기고 카드(공유 링크)는 유지, 시간종료 시 방장에게 패널
+    const timerBox = document.querySelector('.timer-container');
+    if (timerBox) timerBox.style.display = closed ? 'none' : '';
     if (closed && timerInterval) clearInterval(timerInterval);
     const extendPanel = document.getElementById('extend-panel');
     if (extendPanel) extendPanel.style.display = (timeUp && isAdmin) ? 'block' : 'none';
@@ -347,16 +371,6 @@ function render(data, isFinished = false) {
     summary.className = 'vote-summary';
     summary.textContent = closed ? `투표 종료 · 총 ${totalVotes}표` : `총 ${totalVotes}표`;
     listDiv.appendChild(summary);
-
-    // 시간만 종료된 대기 상태 안내
-    if (timeUp) {
-        const notice = document.createElement('div');
-        notice.className = 'timeup-notice';
-        notice.textContent = isAdmin
-            ? '투표 시간이 종료됐어요. 연장하거나 종료를 선택하세요.'
-            : '투표 시간이 종료됐어요. 방장이 마무리하는 중이에요.';
-        listDiv.appendChild(notice);
-    }
 
     // 확정 시 우승 발표 배너
     if (finished && maxVotes > 0) {
@@ -386,17 +400,20 @@ function render(data, isFinished = false) {
         const rank = idx + 1;
         const votes = (data.votes && data.votes[menu]) || 0;
         const isWinner = finished && votes === maxVotes && maxVotes > 0;
-        const isMyVote = data.userVotes && data.userVotes[socket.id] === menu;
+        const isMyVote = !closed && (myVote === menu);
         // 막대 너비: 최다 득표를 100% 기준으로 환산
         const pct = maxVotes > 0 ? Math.round((votes / maxVotes) * 100) : 0;
         const share = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
         const c = colorOf[menu] || BAR_COLORS[0];
+        // 마감되면 모든 막대를 회색으로
+        const fill = closed ? '#DBDBDB' : c.fill;
+        const edge = closed ? '#BDBDBD' : c.edge;
         const link = (data.links && data.links[menu]) || null;
 
         const safeMenu = escapeHtml(menu);
         const div = document.createElement('div');
         div.className = `menu-item ${isWinner ? 'winner' : ''} ${isMyVote ? 'voted' : ''}`;
-        div.style.cssText = `--fill:${c.fill};--edge:${c.edge}`;
+        div.style.cssText = `--fill:${fill};--edge:${edge}`;
         div.innerHTML = `
             <div class="menu-bar" style="width:${pct}%"></div>
             <div class="menu-row">
