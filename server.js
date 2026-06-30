@@ -236,7 +236,8 @@ io.on('connection', (socket) => {
                     const out = {};
                     if (isUrl(e.map)) out.map = e.map;
                     if (isUrl(e.dir)) out.dir = e.dir;
-                    if (out.map || out.dir) cleanLinks[menu] = out;
+                    if (typeof e.cat === 'string' && e.cat) out.cat = e.cat.slice(0, 40);
+                    if (out.map || out.dir || out.cat) cleanLinks[menu] = out;
                 }
             });
         }

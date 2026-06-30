@@ -58,6 +58,30 @@ function showToast(message) {
     toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
+// 카테고리(또는 메뉴명)에서 음식 이모지 추론
+function catToIcon(text) {
+    const c = String(text || '');
+    if (!c) return '🍴';
+    const has = (...ks) => ks.some((k) => c.includes(k));
+    if (has('커피', '카페')) return '☕';
+    if (has('디저트', '베이커리', '빵', '케이크', '제과')) return '🍰';
+    if (has('치킨', '닭')) return '🍗';
+    if (has('피자')) return '🍕';
+    if (has('버거', '햄버거')) return '🍔';
+    if (has('초밥', '스시', '회', '횟집', '해산물', '수산', '물회')) return '🍣';
+    if (has('우동', '라멘', '라면', '국수', '면', '소바', '쌀국수')) return '🍜';
+    if (has('돈까스', '돈가스', '카츠')) return '🍱';
+    if (has('중식', '중국', '짜장', '짬뽕', '마라')) return '🥡';
+    if (has('떡볶이', '분식', '김밥')) return '🌶️';
+    if (has('고기', '구이', '삼겹', '갈비', '바베큐', 'BBQ', '정육', '곱창', '족발', '보쌈')) return '🍖';
+    if (has('국밥', '탕', '찌개', '전골', '해장', '국', '죽')) return '🍲';
+    if (has('파스타', '스테이크', '이탈리', '양식', '브런치')) return '🍝';
+    if (has('한식', '백반', '가정', '비빔', '쌈')) return '🍚';
+    if (has('술', '포차', '호프', '주점', '이자카야', '바')) return '🍺';
+    if (has('샐러드', '샌드위치')) return '🥗';
+    return '🍴';
+}
+
 /** HTML 특수문자를 이스케이프해 XSS를 방지한다. */
 function escapeHtml(str) {
     return String(str)
@@ -180,7 +204,7 @@ socket.on('voteError', (message) => {
    ========================================== */
 
 // 후보 추가 공통 로직 (직접 입력 / 맛집 검색 둘 다 사용)
-function addMenu(name, mapUrl, dirUrl) {
+function addMenu(name, mapUrl, dirUrl, cat) {
     name = (name || '').trim();
     if (!name) return false;
     if (tempMenus.includes(name)) {
@@ -188,7 +212,7 @@ function addMenu(name, mapUrl, dirUrl) {
         return false;
     }
     tempMenus.push(name);
-    if (mapUrl || dirUrl) menuLinks[name] = { map: mapUrl || '', dir: dirUrl || '' };
+    if (mapUrl || dirUrl || cat) menuLinks[name] = { map: mapUrl || '', dir: dirUrl || '', cat: cat || '' };
     renderTempList();
 
     // 추가 피드백: 카운트 배지 톡 + 토스트
@@ -226,12 +250,14 @@ function renderTempList() {
         return;
     }
 
-    listDiv.innerHTML = tempMenus.map((menu, index) => `
+    listDiv.innerHTML = tempMenus.map((menu, index) => {
+        const cat = (menuLinks[menu] && menuLinks[menu].cat) || '';
+        return `
         <div class="temp-menu-item">
-            <span class="temp-menu-name">${escapeHtml(menu)}</span>
+            <span class="temp-menu-name"><span class="temp-emoji">${catToIcon(cat || menu)}</span> ${escapeHtml(menu)}</span>
             <div class="btn-remove-temp" data-index="${index}">&times;</div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 function removeTempMenu(index) {
@@ -420,7 +446,7 @@ function render(data, isFinished = false) {
                 <div class="menu-info">
                     ${closed
                         ? `<span class="rank ${rank === 1 ? 'rank-1' : ''}">${rank}</span>`
-                        : `<span class="menu-dot"></span>`}
+                        : `<span class="menu-emoji">${catToIcon((link && link.cat) || menu)}</span>`}
                     <span class="menu-name">${safeMenu}</span>
                 </div>
                 <div class="vote-section">
@@ -517,7 +543,7 @@ async function searchPlaces() {
                 ? `https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`
                 : '';
             return `
-            <div class="search-item" data-name="${escapeHtml(p.name)}" data-url="${escapeHtml(mapUrl)}" data-dir="${escapeHtml(dirUrl)}">
+            <div class="search-item" data-name="${escapeHtml(p.name)}" data-url="${escapeHtml(mapUrl)}" data-dir="${escapeHtml(dirUrl)}" data-cat="${escapeHtml(p.category || '')}">
                 <div class="search-name">${escapeHtml(p.name)}</div>
                 <div class="search-addr">${escapeHtml(p.category || '')}${p.category && p.address ? ' · ' : ''}${escapeHtml(p.address || '')}</div>
             </div>`;
@@ -698,7 +724,7 @@ document.getElementById('menuInput').addEventListener('keydown', (e) => {
 // 맛집 검색 결과 클릭 → 후보 리스트에 추가 (data-name 은 브라우저가 디코딩해 원본 반환)
 document.getElementById('search-results').addEventListener('click', (e) => {
     const item = e.target.closest('.search-item');
-    if (item && item.dataset.name != null) addMenu(item.dataset.name, item.dataset.url, item.dataset.dir);
+    if (item && item.dataset.name != null) addMenu(item.dataset.name, item.dataset.url, item.dataset.dir, item.dataset.cat);
 });
 
 // Enter 키로 맛집 검색

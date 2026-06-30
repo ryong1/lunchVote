@@ -350,6 +350,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 
 .menu-info { display: flex; align-items: center; gap: 9px; min-width: 0; }
 
+.menu-emoji { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; line-height: 1; }
+
 .menu-dot {
     width: 9px;
     height: 9px;
@@ -575,6 +577,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 }
 
 .temp-menu-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+.temp-emoji { font-size: 16px; }
 
 .btn-remove-temp {
     cursor: pointer;
