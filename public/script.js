@@ -279,6 +279,16 @@ function render(data, isFinished = false) {
     const listDiv = document.getElementById('menuList');
     if (!listDiv) return;
 
+    // 종료 시 타이머 영역도 결과 상태로 표시
+    if (isFinished) {
+        if (timerInterval) clearInterval(timerInterval);
+        const disp = document.getElementById('timer-display');
+        if (disp) disp.innerText = '투표 종료';
+        const lab = document.querySelector('.timer-label');
+        if (lab) lab.innerText = '결과';
+    }
+    listDiv.classList.toggle('finished', !!isFinished);
+
     if (!data || !data.candidates || data.candidates.length === 0) {
         listDiv.innerHTML = '<p class="empty-info">방장이 메뉴를 등록 중입니다...</p>';
         return;
@@ -300,11 +310,24 @@ function render(data, isFinished = false) {
     summary.textContent = isFinished ? `투표 종료 · 총 ${totalVotes}표` : `총 ${totalVotes}표`;
     listDiv.appendChild(summary);
 
+    // 종료 시 우승 발표 배너
+    if (isFinished && maxVotes > 0) {
+        const winners = data.candidates.filter((m) => (data.votes[m] || 0) === maxVotes);
+        const banner = document.createElement('div');
+        banner.className = 'result-banner';
+        banner.innerHTML = `
+            <span class="result-tag">${winners.length > 1 ? '공동 1위' : '최종 1위'}</span>
+            <span class="result-name">${winners.map(escapeHtml).join(', ')}</span>
+        `;
+        listDiv.appendChild(banner);
+    }
+
     // 후보별 고유 색을 등록 순서로 고정 (정렬돼도 색 유지)
     const colorOf = {};
     data.candidates.forEach((m, i) => { colorOf[m] = BAR_COLORS[i % BAR_COLORS.length]; });
 
-    sorted.forEach(menu => {
+    sorted.forEach((menu, idx) => {
+        const rank = idx + 1;
         const votes = (data.votes && data.votes[menu]) || 0;
         const isWinner = isFinished && votes === maxVotes && maxVotes > 0;
         const isMyVote = data.userVotes && data.userVotes[socket.id] === menu;
@@ -321,7 +344,9 @@ function render(data, isFinished = false) {
             <div class="menu-bar" style="width:${pct}%"></div>
             <div class="menu-row">
                 <div class="menu-info">
-                    <span class="menu-dot"></span>
+                    ${isFinished
+                        ? `<span class="rank ${rank === 1 ? 'rank-1' : ''}">${rank}</span>`
+                        : `<span class="menu-dot"></span>`}
                     <span class="menu-name">${safeMenu}</span>
                     <span class="vote-share">${share}%</span>
                 </div>
