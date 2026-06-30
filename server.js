@@ -72,7 +72,7 @@ app.get('/api/region', async (req, res) => {
         const docs = data.documents || [];
         const doc = docs.find((d) => d.region_type === 'H') || docs[0];
         const region = doc
-            ? [doc.region_1depth_name, doc.region_2depth_name].filter(Boolean).join(' ')
+            ? [doc.region_1depth_name, doc.region_2depth_name, doc.region_3depth_name].filter(Boolean).join(' ')
             : '';
         res.json({ region });
     } catch (err) {
@@ -155,8 +155,10 @@ io.on('connection', (socket) => {
                 candidates: [],
                 votes: {},
                 userVotes: {},
+                links: {},
                 endTime: null,
                 isFinished: false,
+                timeUp: false,
                 adminId: socket.id,
             };
         }
@@ -170,7 +172,7 @@ io.on('connection', (socket) => {
     });
 
     // 2. 투표 세션 시작
-    socket.on('startVoteSession', ({ roomId, menus, seconds, minutes } = {}) => {
+    socket.on('startVoteSession', ({ roomId, menus, seconds, minutes, links } = {}) => {
         const room = rooms[roomId];
         if (!room || room.adminId !== socket.id) return;
 
@@ -187,17 +189,34 @@ io.on('connection', (socket) => {
             room.votes[menu] = 0;
         });
 
+        // 후보별 링크 { map, dir } (http/https URL만 허용)
+        const cleanLinks = {};
+        if (links && typeof links === 'object') {
+            const isUrl = (v) => typeof v === 'string' && /^https?:\/\//.test(v);
+            cleanMenus.forEach((menu) => {
+                const e = links[menu];
+                if (e && typeof e === 'object') {
+                    const out = {};
+                    if (isUrl(e.map)) out.map = e.map;
+                    if (isUrl(e.dir)) out.dir = e.dir;
+                    if (out.map || out.dir) cleanLinks[menu] = out;
+                }
+            });
+        }
+        room.links = cleanLinks;
+
         const duration = sanitizeDuration(seconds, minutes) * 1000;
         room.endTime = Date.now() + duration;
         room.isFinished = false;
+        room.timeUp = false;
 
         if (room.timeout) clearTimeout(room.timeout);
 
         room.timeout = setTimeout(() => {
-            room.isFinished = true;
-            const finishData = getSafeRoomData(room);
-            io.to(roomId).emit('finishVote', finishData);
-            io.to(roomId).emit('updateData', finishData);
+            room.timeUp = true; // 시간 종료(대기) — 방장이 종료를 눌러야 확정
+            const d = getSafeRoomData(room);
+            io.to(roomId).emit('timeUp', d);
+            io.to(roomId).emit('updateData', d);
         }, duration);
 
         const updateData = getSafeRoomData(room);
@@ -207,10 +226,49 @@ io.on('connection', (socket) => {
         console.log(`[${roomId}] 투표 시작 완료`);
     });
 
+    // 2-1. 투표 시간 연장 (방장)
+    socket.on('extendVote', ({ roomId, seconds } = {}) => {
+        const room = rooms[roomId];
+        if (!room || room.adminId !== socket.id) return;
+        if (!room.candidates.length) return; // 진행할 후보가 있어야 함
+
+        const duration = sanitizeDuration(seconds) * 1000;
+        room.endTime = Date.now() + duration;
+        room.isFinished = false; // 투표 재개 (표는 유지)
+        room.timeUp = false;
+
+        if (room.timeout) clearTimeout(room.timeout);
+        room.timeout = setTimeout(() => {
+            room.timeUp = true; // 시간 종료(대기) — 방장이 종료를 눌러야 확정
+            const d = getSafeRoomData(room);
+            io.to(roomId).emit('timeUp', d);
+            io.to(roomId).emit('updateData', d);
+        }, duration);
+
+        const updateData = getSafeRoomData(room);
+        io.to(roomId).emit('timerUpdated', room.endTime);
+        io.to(roomId).emit('updateData', updateData);
+
+        console.log(`[${roomId}] 투표 연장`);
+    });
+
+    // 2-2. 투표 종료 확정 (방장만)
+    socket.on('endVote', ({ roomId } = {}) => {
+        const room = rooms[roomId];
+        if (!room || room.adminId !== socket.id) return;
+        if (room.timeout) clearTimeout(room.timeout);
+        room.isFinished = true;
+        room.timeUp = false;
+        const d = getSafeRoomData(room);
+        io.to(roomId).emit('finishVote', d);
+        io.to(roomId).emit('updateData', d);
+        console.log(`[${roomId}] 투표 종료 확정`);
+    });
+
     // 3. 투표 로직 (클릭 시마다 발생)
     socket.on('castVote', ({ roomId, menuName } = {}) => {
         const room = rooms[roomId];
-        if (!room || room.isFinished) return;
+        if (!room || room.isFinished || room.timeUp) return;
         // 등록된 후보가 아니면 무시 (임의 키 주입 방지)
         if (!Object.prototype.hasOwnProperty.call(room.votes, menuName)) return;
 

@@ -4,6 +4,7 @@
 let isAdmin = false;
 let timerInterval = null;
 let tempMenus = [];
+let menuLinks = {}; // 후보명 → 카카오맵 링크
 let selectedMin = 10; // 투표 제한 시간(분)
 let selectedSec = 0;  // 투표 제한 시간(초)
 let socket = null;
@@ -14,9 +15,9 @@ let kakaoMarkers = [];
 let kakaoInfo = null;
 let lastPlaces = [];
 
-// 모든 후보 동일 색 (분홍으로 통일)
+// 모든 후보 동일 색 (분홍)
 const BAR_COLORS = [
-    { fill: '#FFE3E3', edge: '#E89AAC' },
+    { fill: '#FFD4D4', edge: '#E89AAC' },
 ];
 
 // 시/도 → 시군구 (PC용 셀렉트박스)
@@ -140,6 +141,12 @@ socket.on('finishVote', (data) => {
     render(data, true);
 });
 
+// 시간만 종료(대기) — 방장이 연장/종료 결정
+socket.on('timeUp', (data) => {
+    if (timerInterval) clearInterval(timerInterval);
+    render(data, false);
+});
+
 // 방장 권한을 인계받았을 때 (기존 방장 이탈)
 socket.on('adminGranted', () => {
     isAdmin = true;
@@ -157,7 +164,7 @@ socket.on('voteError', (message) => {
    ========================================== */
 
 // 후보 추가 공통 로직 (직접 입력 / 맛집 검색 둘 다 사용)
-function addMenu(name) {
+function addMenu(name, mapUrl, dirUrl) {
     name = (name || '').trim();
     if (!name) return false;
     if (tempMenus.includes(name)) {
@@ -165,7 +172,13 @@ function addMenu(name) {
         return false;
     }
     tempMenus.push(name);
+    if (mapUrl || dirUrl) menuLinks[name] = { map: mapUrl || '', dir: dirUrl || '' };
     renderTempList();
+
+    // 추가 피드백: 카운트 배지 톡 + 토스트
+    const badge = document.getElementById('temp-count');
+    if (badge) { badge.classList.remove('pop'); void badge.offsetWidth; badge.classList.add('pop'); }
+    showToast(`'${name}' 추가됨`);
     return true;
 }
 
@@ -206,7 +219,9 @@ function renderTempList() {
 }
 
 function removeTempMenu(index) {
+    const removed = tempMenus[index];
     tempMenus.splice(index, 1);
+    if (removed) delete menuLinks[removed];
     renderTempList();
 }
 
@@ -225,11 +240,16 @@ function submitFinalVote() {
 
     console.log("투표 시작 시도:", { roomId, menus: tempMenus, seconds: totalSeconds });
 
+    // 후보별 지도 링크 추려서 함께 전송
+    const links = {};
+    tempMenus.forEach((m) => { if (menuLinks[m]) links[m] = menuLinks[m]; });
+
     // 1. 서버에 데이터 전송
     socket.emit('startVoteSession', {
         roomId: roomId,
         menus: tempMenus,
-        seconds: totalSeconds
+        seconds: totalSeconds,
+        links: links
     });
 
     
@@ -243,6 +263,7 @@ function submitFinalVote() {
 
     // 4. 임시 데이터 비우기
     tempMenus = [];
+    menuLinks = {};
     renderTempList();
 }
 
@@ -252,6 +273,21 @@ function submitFinalVote() {
 
 function castVote(menuName) {
     socket.emit('castVote', { roomId, menuName });
+}
+
+// 투표 시간 연장 (방장)
+function extendVote(minutes) {
+    socket.emit('extendVote', { roomId, seconds: minutes * 60 });
+    const panel = document.getElementById('extend-panel');
+    if (panel) panel.style.display = 'none';
+    showToast(`${minutes}분 연장됐어요`);
+}
+
+// 투표 종료 확정 (방장)
+function endVote() {
+    socket.emit('endVote', { roomId });
+    const panel = document.getElementById('extend-panel');
+    if (panel) panel.style.display = 'none';
 }
 
 function showPage(pageId) {
@@ -279,15 +315,17 @@ function render(data, isFinished = false) {
     const listDiv = document.getElementById('menuList');
     if (!listDiv) return;
 
-    // 종료 시 타이머 영역도 결과 상태로 표시
-    if (isFinished) {
-        if (timerInterval) clearInterval(timerInterval);
-        const disp = document.getElementById('timer-display');
-        if (disp) disp.innerText = '투표 종료';
-        const lab = document.querySelector('.timer-label');
-        if (lab) lab.innerText = '결과';
-    }
-    listDiv.classList.toggle('finished', !!isFinished);
+    const finished = !!(isFinished || (data && data.isFinished)); // 방장이 확정
+    const timeUp = !!(data && data.timeUp) && !finished;           // 시간만 종료(대기)
+    const closed = finished || timeUp;                              // 투표 마감 상태
+
+    // 마감 시 타이머 숨김, 시간종료(대기) 시 방장에게 연장/종료 패널
+    const timerCard = document.getElementById('timer-card');
+    if (timerCard) timerCard.style.display = closed ? 'none' : '';
+    if (closed && timerInterval) clearInterval(timerInterval);
+    const extendPanel = document.getElementById('extend-panel');
+    if (extendPanel) extendPanel.style.display = (timeUp && isAdmin) ? 'block' : 'none';
+    listDiv.classList.toggle('finished', closed);
 
     if (!data || !data.candidates || data.candidates.length === 0) {
         listDiv.innerHTML = '<p class="empty-info">방장이 메뉴를 등록 중입니다...</p>';
@@ -296,7 +334,7 @@ function render(data, isFinished = false) {
     
     listDiv.innerHTML = '';
     const sorted = [...data.candidates];
-    if (isFinished && data.votes) {
+    if (closed && data.votes) {
         sorted.sort((a, b) => (data.votes[b] || 0) - (data.votes[a] || 0));
     }
 
@@ -307,17 +345,35 @@ function render(data, isFinished = false) {
     // 참여 현황 요약
     const summary = document.createElement('div');
     summary.className = 'vote-summary';
-    summary.textContent = isFinished ? `투표 종료 · 총 ${totalVotes}표` : `총 ${totalVotes}표`;
+    summary.textContent = closed ? `투표 종료 · 총 ${totalVotes}표` : `총 ${totalVotes}표`;
     listDiv.appendChild(summary);
 
-    // 종료 시 우승 발표 배너
-    if (isFinished && maxVotes > 0) {
+    // 시간만 종료된 대기 상태 안내
+    if (timeUp) {
+        const notice = document.createElement('div');
+        notice.className = 'timeup-notice';
+        notice.textContent = isAdmin
+            ? '투표 시간이 종료됐어요. 연장하거나 종료를 선택하세요.'
+            : '투표 시간이 종료됐어요. 방장이 마무리하는 중이에요.';
+        listDiv.appendChild(notice);
+    }
+
+    // 확정 시 우승 발표 배너
+    if (finished && maxVotes > 0) {
         const winners = data.candidates.filter((m) => (data.votes[m] || 0) === maxVotes);
+        const winnerDir = (winners.length === 1 && data.links && data.links[winners[0]])
+            ? data.links[winners[0]].dir : '';
         const banner = document.createElement('div');
         banner.className = 'result-banner';
         banner.innerHTML = `
-            <span class="result-tag">${winners.length > 1 ? '공동 1위' : '최종 1위'}</span>
-            <span class="result-name">${winners.map(escapeHtml).join(', ')}</span>
+            <div class="result-info">
+                <span class="result-tag">${winners.length > 1 ? '공동 1위' : '최종 1위'}</span>
+                <span class="result-name">👑 ${winners.map(escapeHtml).join(', ')}</span>
+            </div>
+            ${winnerDir ? `<a class="banner-dir" href="${escapeHtml(winnerDir)}" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                길찾기
+            </a>` : ''}
         `;
         listDiv.appendChild(banner);
     }
@@ -329,12 +385,13 @@ function render(data, isFinished = false) {
     sorted.forEach((menu, idx) => {
         const rank = idx + 1;
         const votes = (data.votes && data.votes[menu]) || 0;
-        const isWinner = isFinished && votes === maxVotes && maxVotes > 0;
+        const isWinner = finished && votes === maxVotes && maxVotes > 0;
         const isMyVote = data.userVotes && data.userVotes[socket.id] === menu;
         // 막대 너비: 최다 득표를 100% 기준으로 환산
         const pct = maxVotes > 0 ? Math.round((votes / maxVotes) * 100) : 0;
         const share = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
         const c = colorOf[menu] || BAR_COLORS[0];
+        const link = (data.links && data.links[menu]) || null;
 
         const safeMenu = escapeHtml(menu);
         const div = document.createElement('div');
@@ -344,15 +401,19 @@ function render(data, isFinished = false) {
             <div class="menu-bar" style="width:${pct}%"></div>
             <div class="menu-row">
                 <div class="menu-info">
-                    ${isFinished
+                    ${closed
                         ? `<span class="rank ${rank === 1 ? 'rank-1' : ''}">${rank}</span>`
                         : `<span class="menu-dot"></span>`}
                     <span class="menu-name">${safeMenu}</span>
-                    <span class="vote-share">${share}%</span>
                 </div>
                 <div class="vote-section">
-                    <span class="vote-count">${votes}표</span>
-                    ${!isFinished ? `
+                    <span class="vote-count">${share}%</span>
+                    ${link && link.map
+                        ? `<a class="map-link" href="${escapeHtml(link.map)}" target="_blank" rel="noopener" aria-label="지도에서 보기">
+                               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                           </a>`
+                        : ''}
+                    ${!closed ? `
                         <button class="btn-vote ${isMyVote ? 'voted' : 'active'}" data-menu="${safeMenu}">
                             ${isMyVote ? '취소' : '투표'}
                         </button>
@@ -433,12 +494,17 @@ async function searchPlaces() {
         const head = isRecommend && location
             ? `<div class="search-head">${escapeHtml(location)} 추천 맛집 ${places.length}곳</div>`
             : '';
-        resultsDiv.innerHTML = head + places.map((p) => `
-            <div class="search-item" data-name="${escapeHtml(p.name)}">
+        resultsDiv.innerHTML = head + places.map((p) => {
+            const mapUrl = p.url || ''; // 카카오맵 상세(지도)
+            const dirUrl = (p.lat && p.lng) // 길찾기
+                ? `https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`
+                : '';
+            return `
+            <div class="search-item" data-name="${escapeHtml(p.name)}" data-url="${escapeHtml(mapUrl)}" data-dir="${escapeHtml(dirUrl)}">
                 <div class="search-name">${escapeHtml(p.name)}</div>
                 <div class="search-addr">${escapeHtml(p.category || '')}${p.category && p.address ? ' · ' : ''}${escapeHtml(p.address || '')}</div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     } catch (err) {
         resultsDiv.innerHTML = '<p class="empty-msg">검색에 실패했습니다. 잠시 후 다시 시도해 주세요.</p>';
     }
@@ -534,18 +600,27 @@ function setupLocation() {
         const provOpts = provinces.map((p) => `<option${p === '서울특별시' ? ' selected' : ''}>${p}</option>`).join('');
         controls.innerHTML = `
             <select id="provinceSelect" class="loc-select">${provOpts}</select>
-            <select id="districtSelect" class="loc-select"></select>`;
+            <select id="districtSelect" class="loc-select"></select>
+            <input id="dongInput" type="text" class="loc-dong" placeholder="동 입력 (선택, 예: 역삼동)">`;
 
         const prov = document.getElementById('provinceSelect');
         const dist = document.getElementById('districtSelect');
+        const dong = document.getElementById('dongInput');
         const fillDistricts = (p, selected) => {
             dist.innerHTML = REGIONS[p].map((d) => `<option${d === selected ? ' selected' : ''}>${d}</option>`).join('');
         };
-        const apply = () => { locInput.value = `${prov.value} ${dist.value}`; searchPlaces(); };
+        const setLoc = () => {
+            locInput.value = [prov.value, dist.value, dong.value.trim()].filter(Boolean).join(' ');
+        };
+        const apply = () => { setLoc(); searchPlaces(); };
 
         fillDistricts('서울특별시', '강남구');
+        setLoc();
         prov.addEventListener('change', () => { fillDistricts(prov.value); apply(); });
         dist.addEventListener('change', apply);
+        dong.addEventListener('input', setLoc);
+        dong.addEventListener('change', apply);
+        dong.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
     }
 
     searchPlaces(); // 기본 지역 추천 맛집 바로 표시
@@ -606,7 +681,7 @@ document.getElementById('menuInput').addEventListener('keydown', (e) => {
 // 맛집 검색 결과 클릭 → 후보 리스트에 추가 (data-name 은 브라우저가 디코딩해 원본 반환)
 document.getElementById('search-results').addEventListener('click', (e) => {
     const item = e.target.closest('.search-item');
-    if (item && item.dataset.name != null) addMenu(item.dataset.name);
+    if (item && item.dataset.name != null) addMenu(item.dataset.name, item.dataset.url, item.dataset.dir);
 });
 
 // Enter 키로 맛집 검색
