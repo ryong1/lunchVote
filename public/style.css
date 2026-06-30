@@ -2,8 +2,8 @@
    디자인 토큰 — img2 (크림 베이스 · 블루/그린 · 파스텔)
    ========================================== */
 :root {
-    --bg: #ffffe8be;               /* 배경 (크림) */
-    --panel: #FFFFE8;
+    --bg: #FCFCF4;               /* 배경 (살짝 웜한 화이트) */
+    --panel: #FCFCF4;
     --card: #FFFFFF;             /* 카드 (화이트) */
     --cream: #F6F8E2;            /* 입력/막대/보조 well */
 
@@ -78,15 +78,15 @@ body {
 .header h1 {
     margin: 0;
     font-family: var(--font-pixel);
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 400;
     letter-spacing: 0;
-    color: #FFFFFF;
+    color: var(--ink);
 }
 
 /* 투표 만들기 제목은 살짝 작고 가볍게 */
 #view-add .header h1 {
-    font-size: 21px;
+    font-size: 18px;
     font-weight: 700;
 }
 
@@ -115,7 +115,7 @@ body {
     align-items: center;
     gap: 9px;
     font-family: var(--font-head);
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
     letter-spacing: -0.3px;
     color: var(--ink);
@@ -154,7 +154,7 @@ body {
 
 .timer-display {
     font-family: var(--font-pixel);
-    font-size: clamp(28px, 10vw, 38px);
+    font-size: clamp(24px, 7.5vw, 30px);
     font-weight: 400;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
@@ -257,7 +257,7 @@ input[type="text"], input[type="number"] {
     font-size: 15px;
     font-family: inherit;
     color: var(--ink);
-    background: #F5F9FC;
+    background: #F7F8EE;
     transition: border-color 0.2s, background 0.2s;
     outline: none;
 }
@@ -363,7 +363,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 .menu-name {
     min-width: 0;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 15px;
     letter-spacing: -0.3px;
     white-space: nowrap;
     overflow: hidden;
@@ -620,7 +620,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 
 .result-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .result-tag { font-size: 13px; font-weight: 800; color: var(--brand-deep); letter-spacing: 0.3px; }
-.result-name { font-size: 28px; font-weight: 900; color: var(--ink); line-height: 1.2; word-break: break-all; }
+.result-name { font-size: 22px; font-weight: 900; color: var(--ink); line-height: 1.25; word-break: break-all; }
 
 .banner-dir {
     display: inline-flex;
