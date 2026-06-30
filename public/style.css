@@ -42,7 +42,7 @@ html { background: var(--bg); overflow-x: hidden; }
 /* body 자체가 전체를 감싸는 큰 카드 */
 body {
     font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
-    width: calc(100% - 28px);
+    width: calc(100vw - 28px);
     max-width: 480px;
     margin: 14px auto;
     min-height: calc(100vh - 28px);
@@ -337,7 +337,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
     z-index: 0;
 }
 
-.menu-item.voted { border-color: var(--edge, var(--brand)); }
+.menu-item.voted { border-color: #E89AAC; }
 
 .menu-row {
     position: relative;
@@ -608,7 +608,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
    반응형 — 태블릿/데스크탑 (2열)
    ========================================== */
 @media (min-width: 768px) {
-    body { max-width: 720px; margin: 22px auto; width: calc(100% - 44px); }
+    body { max-width: 720px; margin: 22px auto; width: calc(100vw - 44px); }
 
     .header { padding: 26px 30px; }
     .header h1 { font-size: 28px; }
