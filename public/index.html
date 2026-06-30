@@ -55,13 +55,16 @@
         </div>
         
         <main class="container">
-            <div id="admin-controls" class="admin-section" style="display:none;">
-                <div class="card admin-card">
-                    <span class="admin-label">투표 제한 시간 설정</span>
-                    <div class="input-row">
-                        <input type="number" id="timeInput" placeholder="분 단위 (예: 10)">
-                    </div>
+            <div class="card">
+                <h3>맛집 검색</h3>
+                <input type="hidden" id="locationInput" value="서울특별시 강남구">
+                <div id="location-controls" class="loc-controls"></div>
+                <div class="input-row">
+                    <input type="text" id="mapSearchInput" placeholder="음식·식당 이름 (비우면 추천 맛집)">
+                    <button onclick="searchPlaces()" class="btn-main">검색</button>
                 </div>
+                <div id="map" class="map-box"><div class="map-msg">지도를 불러오는 중...</div></div>
+                <div id="search-results" class="search-results-list"></div>
             </div>
 
             <div class="card">
@@ -71,15 +74,6 @@
                     <button onclick="addMenuToList()" class="btn-main">추가</button>
                 </div>
             </div>
-
-            <div class="card">
-                <h3>맛집 검색</h3>
-                <div class="input-row">
-                    <input type="text" id="mapSearchInput" placeholder="장소나 식당 이름...">
-                    <button onclick="searchPlaces()" class="btn-sub">검색</button>
-                </div>
-                <div id="search-results" class="search-results-list"></div>
-            </div>
             
             <div class="card" id="selected-menu-card">
                 <h3>선택된 후보 리스트 <span id="temp-count">0</span></h3>
@@ -88,8 +82,26 @@
                 </div>
             </div>
 
+            <div id="admin-controls" class="admin-section" style="display:none;">
+                <div class="card admin-card">
+                    <span class="admin-label">투표 제한 시간</span>
+                    <div class="wheel-picker">
+                        <div class="wheel-col">
+                            <div class="wheel" id="wheelMin"></div>
+                            <div class="wheel-cap">분</div>
+                        </div>
+                        <div class="wheel-colon">:</div>
+                        <div class="wheel-col">
+                            <div class="wheel" id="wheelSec"></div>
+                            <div class="wheel-cap">초</div>
+                        </div>
+                        <div class="wheel-center" aria-hidden="true"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="submit-area">
-                <button onclick="submitFinalVote()" class="btn-admin btn-submit">
+                <button onclick="submitFinalVote()" class="btn-admin btn-submit" id="submitBtn">
                     이 메뉴들로 투표 시작하기
                 </button>
             </div>

@@ -3,11 +3,83 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 
+// .env 로드 (Node 22+ 내장). 파일 없으면 무시.
+try { process.loadEnvFile(path.join(__dirname, '.env')); } catch (e) { /* .env 없음 */ }
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 맛집 검색 프록시 (카카오 로컬 키워드 검색). REST 키는 서버에만 보관.
+app.get('/api/search', async (req, res) => {
+    const query = (req.query.query || '').toString().trim();
+    const location = (req.query.location || '').toString().trim();
+
+    // 지역 + 검색어 조합. 검색어가 없으면 해당 지역의 '맛집'을 추천.
+    let keyword = [location, query].filter(Boolean).join(' ').trim();
+    if (location && !query) keyword = location + ' 맛집';
+    if (!keyword) return res.json({ places: [] });
+
+    const key = process.env.KAKAO_REST_KEY;
+    if (!key) return res.status(500).json({ error: 'KAKAO_REST_KEY 가 설정되지 않았습니다.' });
+
+    try {
+        const url = 'https://dapi.kakao.com/v2/local/search/keyword.json'
+            + '?query=' + encodeURIComponent(keyword)
+            + '&category_group_code=FD6&size=12'; // FD6 = 음식점
+        const r = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } });
+        if (!r.ok) return res.status(502).json({ error: '카카오 API 응답 오류', status: r.status });
+
+        const data = await r.json();
+        const places = (data.documents || []).map((d) => ({
+            name: d.place_name,
+            address: d.road_address_name || d.address_name || '',
+            category: (d.category_name || '').split('>').pop().trim(),
+            url: d.place_url,
+            lat: parseFloat(d.y),  // 위도
+            lng: parseFloat(d.x),  // 경도
+        }));
+        res.json({ places });
+    } catch (err) {
+        console.error('맛집 검색 실패:', err);
+        res.status(500).json({ error: '검색 처리 중 오류' });
+    }
+});
+
+// 지도 SDK용 JavaScript 키 전달 (도메인 제한이 걸린 클라이언트 키)
+app.get('/api/config', (req, res) => {
+    res.json({ kakaoJsKey: process.env.KAKAO_JS_KEY || '' });
+});
+
+// 좌표 → 지역명 변환 (현재 위치 버튼용)
+app.get('/api/region', async (req, res) => {
+    const x = (req.query.x || '').toString();
+    const y = (req.query.y || '').toString();
+    if (!x || !y) return res.status(400).json({ error: '좌표가 필요합니다.' });
+
+    const key = process.env.KAKAO_REST_KEY;
+    if (!key) return res.status(500).json({ error: 'KAKAO_REST_KEY 가 설정되지 않았습니다.' });
+
+    try {
+        const url = 'https://dapi.kakao.com/v2/local/geo/coord2regioncode.json'
+            + '?x=' + encodeURIComponent(x) + '&y=' + encodeURIComponent(y);
+        const r = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } });
+        if (!r.ok) return res.status(502).json({ error: '카카오 API 응답 오류' });
+
+        const data = await r.json();
+        const docs = data.documents || [];
+        const doc = docs.find((d) => d.region_type === 'H') || docs[0];
+        const region = doc
+            ? [doc.region_1depth_name, doc.region_2depth_name].filter(Boolean).join(' ')
+            : '';
+        res.json({ region });
+    } catch (err) {
+        console.error('지역 변환 실패:', err);
+        res.status(500).json({ error: '지역 변환 중 오류' });
+    }
+});
 
 // DB 대신 사용할 메모리 저장소
 const rooms = {};
@@ -55,11 +127,18 @@ function sanitizeMenus(menus) {
     return cleaned.length >= LIMITS.minMenus ? cleaned : null;
 }
 
-/** 분 단위 입력을 안전한 범위로 보정한다. */
-function sanitizeMinutes(minutes) {
-    const n = Math.floor(Number(minutes));
-    if (!Number.isFinite(n) || n <= 0) return LIMITS.defaultMinutes;
-    return Math.min(Math.max(n, LIMITS.minMinutes), LIMITS.maxMinutes);
+/**
+ * 투표 지속 시간을 초 단위로 보정한다.
+ * seconds 우선, 없으면 minutes(하위호환), 둘 다 없으면 기본 10분.
+ * 범위: 5초 ~ 3시간.
+ */
+function sanitizeDuration(seconds, minutes) {
+    let s = Math.floor(Number(seconds));
+    if (!Number.isFinite(s) || s <= 0) {
+        const m = Math.floor(Number(minutes));
+        s = (Number.isFinite(m) && m > 0) ? m * 60 : LIMITS.defaultMinutes * 60;
+    }
+    return Math.min(Math.max(s, 5), 180 * 60);
 }
 
 io.on('connection', (socket) => {
@@ -91,7 +170,7 @@ io.on('connection', (socket) => {
     });
 
     // 2. 투표 세션 시작
-    socket.on('startVoteSession', ({ roomId, menus, minutes } = {}) => {
+    socket.on('startVoteSession', ({ roomId, menus, seconds, minutes } = {}) => {
         const room = rooms[roomId];
         if (!room || room.adminId !== socket.id) return;
 
@@ -108,7 +187,7 @@ io.on('connection', (socket) => {
             room.votes[menu] = 0;
         });
 
-        const duration = sanitizeMinutes(minutes) * 60000;
+        const duration = sanitizeDuration(seconds, minutes) * 1000;
         room.endTime = Date.now() + duration;
         room.isFinished = false;
 
