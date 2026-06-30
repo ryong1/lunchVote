@@ -2,27 +2,29 @@
    디자인 토큰 — img2 (크림 베이스 · 블루/그린 · 파스텔)
    ========================================== */
 :root {
-    --bg: #DCEFF8;               /* 바깥 배경 (아주 연한 하늘색) */
-    --panel: #E8F4FB;            /* 전체 패널 (아주 연한 하늘색) */
-    --card: #FFFFFF;             /* 개별 카드 (화이트) */
-    --cream: #F6F8FA;            /* 입력/막대/보조 well (연한 톤) */
+    --bg: #FEF9F2;               /* 배경 (크림) */
+    --panel: #FEF9F2;
+    --card: #FFFFFF;             /* 카드 (화이트) */
+    --cream: #FBF3E9;            /* 입력/막대/보조 well */
 
-    --sky: #A7DCEF;              /* 카드 테두리 (파스텔 하늘색) */
-    --sky-deep: #5BA6C6;
-    --lime-soft: #EAF3CF;        /* 방장 카드 (라임) */
-    --lime-deep: #6E8F2A;
+    --sky: #CFE0ED;              /* 카드/요소 테두리 (옅은 블루) */
+    --sky-deep: #5E84A6;
+    --mint: #C9E9D2;             /* 민트 (타이머) */
+    --mint-deep: #6FA98A;
+    --lime-soft: #C9E9D2;
+    --lime-deep: #5E84A6;        /* 방장 라벨 (블루) */
 
-    --brand: #E0509A;            /* 헤더 / 메인 버튼 (핫핑크) */
-    --brand-deep: #C23A80;
+    --brand: #789DBC;            /* 헤더 / 메인 버튼 (블루) */
+    --brand-deep: #5E84A6;
 
-    --butter: #F2D94B;           /* 타이틀 / 우승 (옐로) */
-    --butter-soft: #FBF0B8;
-    --coral: #E87A6B;            /* 삭제 */
+    --butter: #E59A9A;           /* 우승 테두리 (핑크) */
+    --butter-soft: #FFE3E3;      /* 우승 배경 (핑크) */
+    --coral: #E08A7A;            /* 삭제 */
 
-    --ink: #2D3640;              /* 메인 글씨 (쿨 다크) */
-    --text-mid: #6A727A;
-    --text-light: #9AA2AA;
-    --line: #E3E9EE;             /* 구분선/입력 테두리(옅음) */
+    --ink: #1A1A1A;              /* 글씨 검정 */
+    --text-mid: #5A5A5A;
+    --text-light: #9AA0A0;
+    --line: #ECE2D5;             /* 옅은 크림 테두리 */
 
     --font-head: 'Noto Sans KR', sans-serif;
 
@@ -35,7 +37,7 @@
    ========================================== */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-html { background: var(--bg); }
+html { background: var(--bg); overflow-x: hidden; }
 
 /* body 자체가 전체를 감싸는 큰 카드 */
 body {
@@ -72,7 +74,6 @@ body {
     align-items: center;
     gap: 10px;
     background: var(--brand);
-    border-bottom: 4px solid var(--butter);
     border-radius: 18px 18px 0 0;
     padding: 22px 20px;
 }
@@ -83,7 +84,13 @@ body {
     font-size: 25px;
     font-weight: 800;
     letter-spacing: -0.5px;
-    color: var(--butter);
+    color: #FFE3E3;
+}
+
+/* 투표 만들기 제목은 살짝 작고 가볍게 */
+#view-add .header h1 {
+    font-size: 21px;
+    font-weight: 700;
 }
 
 /* ==========================================
@@ -131,7 +138,7 @@ body {
 /* ==========================================
    타이머 (그린 블록)
    ========================================== */
-#timer-card { padding: 22px; }
+#timer-card { padding: 22px; background: var(--mint); border-color: var(--mint-deep); }
 
 .timer-container {
     display: flex;
@@ -277,8 +284,8 @@ button:hover:not(:active) { filter: brightness(1.04); }
 button:active { transform: scale(0.96); }
 button:focus-visible { outline: 2.5px solid var(--brand-deep); outline-offset: 2px; }
 
-.btn-main    { background: var(--brand); color: #fff; width: 84px; }
-.btn-admin   { background: var(--brand); color: #fff; }
+.btn-main    { background: var(--brand); color: var(--ink); width: 84px; }
+.btn-admin   { background: var(--brand); color: var(--ink); }
 .btn-submit  { width: 100%; height: 52px; font-size: 16px; }
 .btn-sub     { background: var(--cream); color: var(--ink); }
 .btn-add-top {
@@ -382,7 +389,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 
 .btn-vote.active {
     background: var(--brand);
-    color: #fff;
+    color: var(--ink);
     border-color: var(--brand);
 }
 
@@ -515,16 +522,16 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 .menu-item.winner { background: var(--butter-soft); border-color: var(--butter); }
 .menu-item.winner .menu-bar { background: var(--butter); opacity: 0.35; }
 .menu-item.winner .menu-dot { background: var(--butter); }
-.menu-item.winner .menu-name { color: #8A6A00; }
+.menu-item.winner .menu-name { color: var(--ink); }
 .menu-item.winner .vote-share,
-.menu-item.winner .vote-count { color: #9A7A10; }
+.menu-item.winner .vote-count { color: var(--text-mid); }
 
 /* ==========================================
    선택된 후보(임시) 리스트
    ========================================== */
 #temp-count {
     background: var(--brand);
-    color: #fff;
+    color: var(--ink);
     font-weight: 800;
     font-size: 12px;
     padding: 2px 9px;
@@ -605,6 +612,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 
     .header { padding: 26px 30px; }
     .header h1 { font-size: 28px; }
+    #view-add .header h1 { font-size: 23px; }
 
     .container { padding: 22px 24px 32px; }
 

@@ -14,13 +14,13 @@ let kakaoMarkers = [];
 let kakaoInfo = null;
 let lastPlaces = [];
 
-// 후보별 색 팔레트 — img3 톤 (fill: 막대 배경 / edge: 점·막대 경계)
+// 후보별 색 팔레트 — 파스텔 (fill: 막대 배경 / edge: 점·막대 경계)
 const BAR_COLORS = [
-    { fill: '#F8D3E6', edge: '#E85BA0' }, // 핑크
-    { fill: '#D3EBF3', edge: '#6FB9DD' }, // 베이비 블루
-    { fill: '#E6F0C6', edge: '#9DBF44' }, // 라임
-    { fill: '#FBEFBE', edge: '#E5C53F' }, // 옐로
-    { fill: '#E6DAF2', edge: '#9A7DC8' }, // 라벤더
+    { fill: '#FFE3E3', edge: '#E59A9A' }, // 핑크
+    { fill: '#C9E9D2', edge: '#7FB89A' }, // 민트
+    { fill: '#CFE0ED', edge: '#789DBC' }, // 블루
+    { fill: '#FBE7CE', edge: '#E0B074' }, // 피치
+    { fill: '#E6DDF0', edge: '#A899C8' }, // 라벤더
 ];
 
 // 시/도 → 시군구 (PC용 셀렉트박스)
