@@ -687,12 +687,15 @@ function updateVoteMap(data) {
     const bounds = new kakao.maps.LatLngBounds();
     pts.forEach((p) => {
         const pos = new kakao.maps.LatLng(p.lat, p.lng);
+        // 기본 마커 + 상호명 라벨(커스텀 오버레이)
         const marker = new kakao.maps.Marker({ position: pos, map: voteMap });
-        kakao.maps.event.addListener(marker, 'click', () => {
-            voteInfo.setContent(`<div class="map-iw">${escapeHtml(p.name)}</div>`);
-            voteInfo.open(voteMap, marker);
+        const label = new kakao.maps.CustomOverlay({
+            position: pos,
+            yAnchor: 2.2, // 마커 위에 이름표
+            content: `<div class="map-pin">${escapeHtml(p.name)}</div>`,
         });
-        voteMarkers.push(marker);
+        label.setMap(voteMap);
+        voteMarkers.push(marker, label);
         bounds.extend(pos);
     });
     voteMap.relayout();
