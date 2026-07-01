@@ -32,10 +32,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/search', async (req, res) => {
     const query = (req.query.query || '').toString().trim();
     const location = (req.query.location || '').toString().trim();
+    const rect = (req.query.rect || '').toString();
+    const hasRect = /^-?\d+(\.\d+)?(,-?\d+(\.\d+)?){3}$/.test(rect);
 
-    // 지역 + 검색어 조합. 검색어가 없으면 해당 지역의 '맛집'을 추천.
-    let keyword = [location, query].filter(Boolean).join(' ').trim();
-    if (location && !query) keyword = location + ' 맛집';
+    // rect(지도 범위)가 있으면 그 안에서 검색어로만 검색(지역명 무시), 없으면 지역+검색어
+    let keyword;
+    if (hasRect) {
+        keyword = query || '맛집';
+    } else {
+        keyword = [location, query].filter(Boolean).join(' ').trim();
+        if (location && !query) keyword = location + ' 맛집';
+    }
     if (!keyword) return res.json({ places: [] });
 
     const key = process.env.KAKAO_REST_KEY;
@@ -44,7 +51,8 @@ app.get('/api/search', async (req, res) => {
     try {
         const url = 'https://dapi.kakao.com/v2/local/search/keyword.json'
             + '?query=' + encodeURIComponent(keyword)
-            + '&category_group_code=FD6&size=12'; // FD6 = 음식점
+            + '&category_group_code=FD6&size=12' // FD6 = 음식점
+            + (hasRect ? '&rect=' + encodeURIComponent(rect) : '');
         const r = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } });
         if (!r.ok) return res.status(502).json({ error: '카카오 API 응답 오류', status: r.status });
 

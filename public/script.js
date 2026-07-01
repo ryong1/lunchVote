@@ -532,21 +532,33 @@ async function searchPlaces() {
 
     const isRecommend = !query; // 검색어 없으면 지역 추천 모드
 
+    // 검색어가 있고 지도가 준비됐으면 현재 지도 범위 안에서 검색 (지도는 그대로 유지)
+    let rect = '';
+    if (query && kakaoMap && window.kakao) {
+        const b = kakaoMap.getBounds();
+        const sw = b.getSouthWest();
+        const ne = b.getNorthEast();
+        rect = [sw.getLng(), sw.getLat(), ne.getLng(), ne.getLat()].join(',');
+    }
+
     resultsDiv.innerHTML = '<p class="empty-msg">검색 중...</p>';
     try {
         const params = new URLSearchParams();
         if (query) params.set('query', query);
         if (location) params.set('location', location);
+        if (rect) params.set('rect', rect);
         const res = await fetch('/api/search?' + params.toString());
         if (!res.ok) throw new Error('서버 오류');
         const data = await res.json();
         let places = data.places || [];
         if (isRecommend) places = places.slice(0, 5); // 추천은 상위 5곳
 
-        const head = isRecommend && location
-            ? `<div class="search-head">${escapeHtml(location)} 추천 맛집 ${places.length}곳</div>`
-            : '';
-        renderPlaces(places, head, { fit: true });
+        const head = rect
+            ? `<div class="search-head">이 지도 범위의 '${escapeHtml(query)}' ${places.length}곳</div>`
+            : (isRecommend && location
+                ? `<div class="search-head">${escapeHtml(location)} 추천 맛집 ${places.length}곳</div>`
+                : '');
+        renderPlaces(places, head, { fit: !rect }); // 지도 범위 검색이면 뷰 유지
     } catch (err) {
         resultsDiv.innerHTML = '<p class="empty-msg">검색에 실패했습니다. 잠시 후 다시 시도해 주세요.</p>';
     }
