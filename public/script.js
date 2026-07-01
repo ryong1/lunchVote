@@ -543,29 +543,53 @@ async function searchPlaces() {
         let places = data.places || [];
         if (isRecommend) places = places.slice(0, 5); // 추천은 상위 5곳
 
-        updateMapMarkers(places);
-
-        if (places.length === 0) {
-            resultsDiv.innerHTML = '<p class="empty-msg">검색 결과가 없습니다.</p>';
-            return;
-        }
-
         const head = isRecommend && location
             ? `<div class="search-head">${escapeHtml(location)} 추천 맛집 ${places.length}곳</div>`
             : '';
-        resultsDiv.innerHTML = head + places.map((p) => {
-            const mapUrl = p.url || ''; // 카카오맵 상세(지도)
-            const dirUrl = (p.lat && p.lng) // 길찾기
-                ? `https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`
-                : '';
-            return `
-            <div class="search-item" data-name="${escapeHtml(p.name)}" data-url="${escapeHtml(mapUrl)}" data-dir="${escapeHtml(dirUrl)}" data-cat="${escapeHtml(p.category || '')}" data-lat="${p.lat || ''}" data-lng="${p.lng || ''}">
-                <div class="search-name">${escapeHtml(p.name)}</div>
-                <div class="search-addr">${escapeHtml(p.category || '')}${p.category && p.address ? ' · ' : ''}${escapeHtml(p.address || '')}</div>
-            </div>`;
-        }).join('');
+        renderPlaces(places, head, { fit: true });
     } catch (err) {
         resultsDiv.innerHTML = '<p class="empty-msg">검색에 실패했습니다. 잠시 후 다시 시도해 주세요.</p>';
+    }
+}
+
+// 검색 결과 목록 + 지도 마커 렌더링 (키워드 검색 / 이 지역 검색 공용)
+function renderPlaces(places, headHtml, opts) {
+    const resultsDiv = document.getElementById('search-results');
+    updateMapMarkers(places, opts);
+    if (!places || places.length === 0) {
+        resultsDiv.innerHTML = '<p class="empty-msg">검색 결과가 없습니다.</p>';
+        return;
+    }
+    resultsDiv.innerHTML = (headHtml || '') + places.map((p) => {
+        const mapUrl = p.url || '';
+        const dirUrl = (p.lat && p.lng)
+            ? `https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`
+            : '';
+        return `
+        <div class="search-item" data-name="${escapeHtml(p.name)}" data-url="${escapeHtml(mapUrl)}" data-dir="${escapeHtml(dirUrl)}" data-cat="${escapeHtml(p.category || '')}" data-lat="${p.lat || ''}" data-lng="${p.lng || ''}">
+            <div class="search-name">${escapeHtml(p.name)}</div>
+            <div class="search-addr">${escapeHtml(p.category || '')}${p.category && p.address ? ' · ' : ''}${escapeHtml(p.address || '')}</div>
+        </div>`;
+    }).join('');
+}
+
+// 현재 지도 범위 안의 식당 검색
+async function searchThisArea() {
+    if (!kakaoMap || !window.kakao) { showToast('지도가 아직 준비되지 않았어요'); return; }
+    const b = kakaoMap.getBounds();
+    const sw = b.getSouthWest();
+    const ne = b.getNorthEast();
+    const rect = [sw.getLng(), sw.getLat(), ne.getLng(), ne.getLat()].join(',');
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = '<p class="empty-msg">이 지역 식당 찾는 중...</p>';
+    try {
+        const res = await fetch('/api/nearby?rect=' + encodeURIComponent(rect));
+        if (!res.ok) throw new Error('서버 오류');
+        const data = await res.json();
+        // 지도 뷰는 유지(fit:false)하고 마커만 갱신
+        renderPlaces(data.places || [], '<div class="search-head">이 지역 식당</div>', { fit: false });
+    } catch (err) {
+        resultsDiv.innerHTML = '<p class="empty-msg">이 지역 검색에 실패했어요.</p>';
     }
 }
 
@@ -663,8 +687,8 @@ function updateVoteMap(data) {
     voteMap.setBounds(bounds);
 }
 
-// 검색 결과 좌표로 마커 갱신 + 화면 맞춤
-function updateMapMarkers(places) {
+// 검색 결과 좌표로 마커 갱신. opts.fit=true 면 결과에 맞춰 화면 이동/줌
+function updateMapMarkers(places, opts) {
     lastPlaces = places;
     if (!kakaoMap || !window.kakao) return;
 
@@ -688,7 +712,7 @@ function updateMapMarkers(places) {
     });
 
     kakaoMap.relayout();
-    kakaoMap.setBounds(bounds);
+    if (!opts || opts.fit !== false) kakaoMap.setBounds(bounds);
 }
 
 // 기기 판별 후 위치 입력 UI 구성 (모바일=GPS / PC=시·군구 셀렉트)

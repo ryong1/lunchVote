@@ -69,6 +69,38 @@ app.get('/api/config', (req, res) => {
     res.json({ kakaoJsKey: process.env.KAKAO_JS_KEY || '' });
 });
 
+// 지도 범위(rect) 내 음식점 검색 — "이 지역에서 검색"
+app.get('/api/nearby', async (req, res) => {
+    const rect = (req.query.rect || '').toString();
+    // rect = swLng,swLat,neLng,neLat (숫자 4개)
+    if (!/^-?\d+(\.\d+)?(,-?\d+(\.\d+)?){3}$/.test(rect)) {
+        return res.status(400).json({ error: 'rect(좌표 4개)가 필요합니다.' });
+    }
+    const key = process.env.KAKAO_REST_KEY;
+    if (!key) return res.status(500).json({ error: 'KAKAO_REST_KEY 미설정' });
+
+    try {
+        const url = 'https://dapi.kakao.com/v2/local/search/category.json'
+            + '?category_group_code=FD6&size=15&rect=' + encodeURIComponent(rect);
+        const r = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } });
+        if (!r.ok) return res.status(502).json({ error: '카카오 API 응답 오류', status: r.status });
+
+        const data = await r.json();
+        const places = (data.documents || []).map((d) => ({
+            name: d.place_name,
+            address: d.road_address_name || d.address_name || '',
+            category: (d.category_name || '').split('>').pop().trim(),
+            url: d.place_url,
+            lat: parseFloat(d.y),
+            lng: parseFloat(d.x),
+        }));
+        res.json({ places });
+    } catch (err) {
+        console.error('지역 검색 실패:', err);
+        res.status(500).json({ error: '검색 처리 중 오류' });
+    }
+});
+
 // 좌표 → 지역명 변환 (현재 위치 버튼용)
 app.get('/api/region', async (req, res) => {
     const x = (req.query.x || '').toString();
