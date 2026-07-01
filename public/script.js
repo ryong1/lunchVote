@@ -10,14 +10,19 @@ let selectedSec = 0;  // 투표 제한 시간(초)
 let socket = null;
 
 // 지도 상태
-let kakaoMap = null;
+let kakaoReady = false;
+let kakaoMap = null;           // 검색(투표 만들기) 지도
 let kakaoMarkers = [];
 let kakaoInfo = null;
 let lastPlaces = [];
+let voteMap = null;            // 투표 화면 지도 (후보 위치)
+let voteMarkers = [];
+let voteInfo = null;
+let lastVoteData = null;
 
-// 모든 후보 동일 색 (분홍)
+// 막대는 무채색 (뉴브루탈리즘)
 const BAR_COLORS = [
-    { fill: '#FFD4D4', edge: '#E89AAC' },
+    { fill: '#ECECEC', edge: '#1A1A1A' },
 ];
 
 // 시/도 → 시군구 (PC용 셀렉트박스)
@@ -204,7 +209,7 @@ socket.on('voteError', (message) => {
    ========================================== */
 
 // 후보 추가 공통 로직 (직접 입력 / 맛집 검색 둘 다 사용)
-function addMenu(name, mapUrl, dirUrl, cat) {
+function addMenu(name, mapUrl, dirUrl, cat, lat, lng) {
     name = (name || '').trim();
     if (!name) return false;
     if (tempMenus.includes(name)) {
@@ -212,7 +217,13 @@ function addMenu(name, mapUrl, dirUrl, cat) {
         return false;
     }
     tempMenus.push(name);
-    if (mapUrl || dirUrl || cat) menuLinks[name] = { map: mapUrl || '', dir: dirUrl || '', cat: cat || '' };
+    const la = parseFloat(lat), ln = parseFloat(lng);
+    if (mapUrl || dirUrl || cat || (la && ln)) {
+        menuLinks[name] = {
+            map: mapUrl || '', dir: dirUrl || '', cat: cat || '',
+            lat: la || null, lng: ln || null,
+        };
+    }
     renderTempList();
 
     // 추가 피드백: 카운트 배지 톡 + 토스트
@@ -352,6 +363,9 @@ function showPage(pageId) {
                 if (lastPlaces.length) updateMapMarkers(lastPlaces);
             }
         }
+        if (pageId === 'view-main' && voteMap && lastVoteData) {
+            requestAnimationFrame(() => updateVoteMap(lastVoteData));
+        }
     }
 }
 
@@ -379,9 +393,13 @@ function render(data, isFinished = false) {
 
     if (!data || !data.candidates || data.candidates.length === 0) {
         listDiv.innerHTML = '<p class="empty-info">방장이 메뉴를 등록 중입니다...</p>';
+        const mc = document.getElementById('vote-map-card');
+        if (mc) mc.style.display = 'none';
         return;
     }
-    
+
+    updateVoteMap(data); // 후보 위치 지도
+
     listDiv.innerHTML = '';
     const sorted = [...data.candidates];
     if (closed && data.votes) {
@@ -429,7 +447,6 @@ function render(data, isFinished = false) {
         const isMyVote = !closed && (myVote === menu);
         // 막대 너비: 최다 득표를 100% 기준으로 환산
         const pct = maxVotes > 0 ? Math.round((votes / maxVotes) * 100) : 0;
-        const share = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
         const c = colorOf[menu] || BAR_COLORS[0];
         // 마감되면 모든 막대를 회색으로
         const fill = closed ? '#DBDBDB' : c.fill;
@@ -450,7 +467,6 @@ function render(data, isFinished = false) {
                     <span class="menu-name">${safeMenu}</span>
                 </div>
                 <div class="vote-section">
-                    <span class="vote-count">${share}%</span>
                     ${link && link.map
                         ? `<a class="map-link" href="${escapeHtml(link.map)}" target="_blank" rel="noopener" aria-label="지도에서 보기">
                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -543,7 +559,7 @@ async function searchPlaces() {
                 ? `https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`
                 : '';
             return `
-            <div class="search-item" data-name="${escapeHtml(p.name)}" data-url="${escapeHtml(mapUrl)}" data-dir="${escapeHtml(dirUrl)}" data-cat="${escapeHtml(p.category || '')}">
+            <div class="search-item" data-name="${escapeHtml(p.name)}" data-url="${escapeHtml(mapUrl)}" data-dir="${escapeHtml(dirUrl)}" data-cat="${escapeHtml(p.category || '')}" data-lat="${p.lat || ''}" data-lng="${p.lng || ''}">
                 <div class="search-name">${escapeHtml(p.name)}</div>
                 <div class="search-addr">${escapeHtml(p.category || '')}${p.category && p.address ? ' · ' : ''}${escapeHtml(p.address || '')}</div>
             </div>`;
@@ -574,11 +590,16 @@ async function loadKakaoMap() {
                 if (mapBox) mapBox.innerHTML = '<div class="map-msg">지도 SDK 로드 실패<br>(도메인 등록을 확인하세요)</div>';
                 return;
             }
-            window.kakao.maps.load(initMap);
+            window.kakao.maps.load(() => {
+                kakaoReady = true;
+                initMap();      // 검색 지도
+                initVoteMap();  // 투표 화면 지도
+                if (lastVoteData) updateVoteMap(lastVoteData);
+            });
         };
         script.onerror = () => {
-            console.error('[lunchVote] 카카오맵 SDK 로드 실패. ① 카카오 콘솔 Web 플랫폼에 http://localhost:3000 등록 ② JavaScript 키 확인');
-            if (mapBox) mapBox.innerHTML = '<div class="map-msg">지도를 불러오지 못했습니다.<br>도메인 등록(http://localhost:3000)을 확인하세요.</div>';
+            console.error('[lunchVote] 카카오맵 SDK 로드 실패. 카카오 콘솔 Web 플랫폼에 사이트 도메인 등록 + JavaScript 키 확인');
+            if (mapBox) mapBox.innerHTML = '<div class="map-msg">지도를 불러오지 못했습니다.<br>카카오 도메인 등록을 확인하세요.</div>';
         };
         document.head.appendChild(script);
     } catch (err) {
@@ -596,6 +617,50 @@ function initMap() {
     });
     kakaoInfo = new kakao.maps.InfoWindow({ zIndex: 1 });
     if (lastPlaces.length) updateMapMarkers(lastPlaces); // 이미 검색한 결과 반영
+}
+
+function initVoteMap() {
+    const container = document.getElementById('voteMap');
+    if (!container) return;
+    voteMap = new kakao.maps.Map(container, {
+        center: new kakao.maps.LatLng(37.4979, 127.0276),
+        level: 5,
+    });
+    voteInfo = new kakao.maps.InfoWindow({ zIndex: 1 });
+}
+
+// 투표 화면: 후보 식당 좌표로 마커 표시. 좌표 있는 후보가 없으면 지도 카드 숨김.
+function updateVoteMap(data) {
+    lastVoteData = data;
+    const cardEl = document.getElementById('vote-map-card');
+    const links = (data && data.links) || {};
+    const pts = (data && data.candidates ? data.candidates : [])
+        .map((name) => ({ name, ...(links[name] || {}) }))
+        .filter((p) => p.lat && p.lng);
+
+    if (!cardEl) return;
+    if (pts.length === 0) { cardEl.style.display = 'none'; return; }
+    cardEl.style.display = '';
+
+    if (!kakaoReady || !voteMap) return; // SDK 준비되면 다시 호출됨
+
+    voteMarkers.forEach((m) => m.setMap(null));
+    voteMarkers = [];
+    if (voteInfo) voteInfo.close();
+
+    const bounds = new kakao.maps.LatLngBounds();
+    pts.forEach((p) => {
+        const pos = new kakao.maps.LatLng(p.lat, p.lng);
+        const marker = new kakao.maps.Marker({ position: pos, map: voteMap });
+        kakao.maps.event.addListener(marker, 'click', () => {
+            voteInfo.setContent(`<div class="map-iw">${escapeHtml(p.name)}</div>`);
+            voteInfo.open(voteMap, marker);
+        });
+        voteMarkers.push(marker);
+        bounds.extend(pos);
+    });
+    voteMap.relayout();
+    voteMap.setBounds(bounds);
 }
 
 // 검색 결과 좌표로 마커 갱신 + 화면 맞춤
@@ -724,7 +789,7 @@ document.getElementById('menuInput').addEventListener('keydown', (e) => {
 // 맛집 검색 결과 클릭 → 후보 리스트에 추가 (data-name 은 브라우저가 디코딩해 원본 반환)
 document.getElementById('search-results').addEventListener('click', (e) => {
     const item = e.target.closest('.search-item');
-    if (item && item.dataset.name != null) addMenu(item.dataset.name, item.dataset.url, item.dataset.dir, item.dataset.cat);
+    if (item && item.dataset.name != null) addMenu(item.dataset.name, item.dataset.url, item.dataset.dir, item.dataset.cat, item.dataset.lat, item.dataset.lng);
 });
 
 // Enter 키로 맛집 검색

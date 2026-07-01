@@ -1,31 +1,26 @@
 /* ==========================================
-   디자인 토큰 — img2 (크림 베이스 · 블루/그린 · 파스텔)
+   디자인 토큰 — 뉴브루탈리즘 (화이트 + 검정 테두리 + 포인트)
    ========================================== */
 :root {
-    --bg: #FCFCF4;               /* 배경 (살짝 웜한 화이트) */
-    --panel: #FCFCF4;
-    --card: #FFFFFF;             /* 카드 (화이트) */
-    --cream: #F6F8E2;            /* 입력/막대/보조 well */
+    --bg: #FFFFFF;
+    --panel: #FFFFFF;
+    --card: #FFFFFF;
+    --well: #F2F2EE;             /* 입력/막대/보조 (라이트 그레이) */
 
-    --sky: #DCEBC2;              /* 카드/요소 테두리 (연그린) */
-    --mint: #CDE990;             /* 타이머 (라임) */
-    --mint-deep: #8FB35A;
-    --lime-deep: #6E8F2A;        /* 방장 라벨 */
+    --ink: #1A1A1A;              /* 글씨 & 테두리 (니어블랙) */
+    --line: #1A1A1A;             /* 검정 테두리 */
+    --text-mid: #6B6B70;
+    --text-light: #9A9AA0;
 
-    --brand: #AACB73;            /* 헤더 / 메인 버튼 (그린) */
-    --brand-deep: #8FB258;
+    --pink: #F2619C;             /* 포인트 1 (버튼/CTA/내 투표) */
+    --pink-deep: #D64A82;
+    --yellow: #EDE986;           /* 포인트 2 (헤더/우승) */
 
-    --coral: #E89A9A;            /* 삭제 */
-
-    --ink: #1A1A1A;              /* 글씨 검정 */
-    --text-mid: #5A5A5A;
-    --text-light: #9AA0A0;
-    --line: #ECE2D5;             /* 옅은 크림 테두리 */
+    --coral: #E23B6D;            /* 삭제 */
 
     --font-head: 'Noto Sans KR', sans-serif;
-    --font-pixel: 'Mona12 Text KR', 'Mona12', 'Noto Sans KR', sans-serif;  /* 픽셀(도트) 디스플레이용 */
 
-    --radius: 14px;
+    --radius: 12px;
     --radius-sm: 9px;
 }
 
@@ -36,7 +31,6 @@
 
 html { background: var(--bg); overflow-x: hidden; }
 
-/* body 자체가 전체를 감싸는 큰 카드 */
 body {
     font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
     width: 100%;
@@ -48,65 +42,61 @@ body {
     line-height: 1.55;
     position: relative;
     padding-bottom: 0;
-    border-radius: 0;
     -webkit-font-smoothing: antialiased;
 }
 
 .page {
     padding: 0;
-    animation: fadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: fadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ==========================================
-   헤더 (스카이 블루 히어로, 테두리 없음)
+   헤더 (옐로 히어로 + 검정 하단 테두리)
    ========================================== */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 10px;
-    background: var(--brand);
-    border-radius: 0;
-    padding: 22px 20px;
+    background: var(--yellow);
+    border-bottom: 3px solid var(--ink);
+    padding: 26px 22px;
 }
 
 .header h1 {
     margin: 0;
-    font-family: var(--font-pixel);
-    font-size: 20px;
-    font-weight: 400;
-    letter-spacing: 0;
+    font-family: var(--font-head);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
     color: var(--ink);
 }
 
-/* 투표 만들기 제목은 살짝 작고 가볍게 */
-#view-add .header h1 {
-    font-size: 18px;
-    font-weight: 700;
-}
+#view-add .header h1 { font-size: 19px; font-weight: 800; }
 
 /* ==========================================
-   레이아웃 (반응형 그리드)
+   레이아웃
    ========================================== */
 .container {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
-    padding: 18px 16px 28px;
+    gap: 20px;
+    padding: 24px 18px 40px;
 }
 
 /* ==========================================
-   카드 (화이트 + 파스텔 하늘색 테두리)
+   카드 (화이트 + 검정 테두리 + 하드 섀도)
    ========================================== */
 .card {
     background: var(--card);
     padding: 22px;
-    border-radius: 16px;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
 }
 
 .card h3 {
@@ -121,20 +111,19 @@ body {
     color: var(--ink);
 }
 
-/* 섹션 제목 앞 액센트 바 */
 .card h3::before {
     content: "";
-    width: 4px;
-    height: 15px;
-    border-radius: 2px;
-    background: var(--brand);
+    width: 5px;
+    height: 16px;
+    border-radius: 1px;
+    background: var(--pink);
     flex-shrink: 0;
 }
 
 /* ==========================================
-   타이머 (그린 블록)
+   타이머 (화이트 카드, 큰 검정 숫자)
    ========================================== */
-#timer-card { padding: 22px; background: var(--mint); border-color: var(--mint-deep); }
+#timer-card { padding: 22px; }
 
 .timer-container {
     display: flex;
@@ -143,42 +132,28 @@ body {
     background: transparent;
     padding: 2px 2px 16px;
     margin-bottom: 14px;
+    border-bottom: 2px dashed var(--ink);
 }
 
-.timer-label {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-mid);
-    letter-spacing: 0.2px;
-}
+.timer-label { min-width: 0; font-size: 14px; font-weight: 800; color: var(--text-mid); letter-spacing: 0.2px; }
 
 .timer-display {
-    font-family: var(--font-pixel);
-    font-size: clamp(24px, 7.5vw, 30px);
-    font-weight: 400;
+    font-family: var(--font-head);
+    font-size: clamp(26px, 8vw, 32px);
+    font-weight: 900;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
 }
 
-.timer-label { min-width: 0; }
-
 /* ==========================================
-   방장 섹션 (라벤더)
+   방장 섹션
    ========================================== */
 .admin-section { grid-column: 1 / -1; }
-
 .admin-card { background: var(--card); }
+.admin-label { font-size: 14px; margin-bottom: 12px; font-weight: 800; color: var(--ink); display: block; }
 
-.admin-label {
-    font-size: 14px;
-    margin-bottom: 12px;
-    font-weight: 700;
-    color: var(--lime-deep);
-    display: block;
-}
-
-/* 투표 제한 시간 — 분:초 휠 피커 (폰 타이머식) */
+/* 투표 제한 시간 — 분:초 휠 피커 */
 .wheel-picker {
     position: relative;
     display: flex;
@@ -218,16 +193,16 @@ body {
     transition: color 0.15s, font-size 0.15s;
 }
 
-.wheel-item.is-selected { color: var(--ink); font-size: 26px; font-weight: 800; }
+.wheel-item.is-selected { color: var(--ink); font-size: 26px; font-weight: 900; }
 
-.wheel-cap { font-size: 12px; font-weight: 700; color: var(--text-mid); margin-top: 6px; }
+.wheel-cap { font-size: 12px; font-weight: 800; color: var(--text-mid); margin-top: 6px; }
 
 .wheel-colon {
     height: 180px;
     display: flex;
     align-items: center;
     font-size: 24px;
-    font-weight: 800;
+    font-weight: 900;
     color: var(--ink);
 }
 
@@ -237,8 +212,8 @@ body {
     right: 0;
     top: 72px;
     height: 36px;
-    border-top: 1.5px solid var(--sky);
-    border-bottom: 1.5px solid var(--sky);
+    border-top: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
     pointer-events: none;
     z-index: 0;
 }
@@ -251,58 +226,57 @@ body {
 input[type="text"], input[type="number"] {
     flex: 1;
     min-width: 0;
-    padding: 13px 15px;
-    border: 1.5px solid var(--line);
+    padding: 12px 14px;
+    border: 2px solid var(--ink);
     border-radius: var(--radius-sm);
     font-size: 15px;
     font-family: inherit;
     color: var(--ink);
-    background: #F7F8EE;
-    transition: border-color 0.2s, background 0.2s;
+    background: #fff;
+    transition: border-color 0.15s;
     outline: none;
 }
 
 input::placeholder { color: var(--text-light); }
 
-input:focus {
-    border-color: var(--brand);
-    background: #fff;
-}
+input:focus { border-color: var(--pink); }
 
 button {
-    border: none;
+    border: 2px solid var(--ink);
     border-radius: var(--radius-sm);
-    padding: 12px 20px;
+    padding: 11px 18px;
     font-family: inherit;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 14px;
+    color: var(--ink);
+    background: #fff;
     cursor: pointer;
-    transition: transform 0.15s ease, filter 0.2s, background 0.2s;
+    transition: transform 0.12s ease, filter 0.15s ease;
 }
 
-button:hover:not(:active) { filter: brightness(1.04); }
+button:hover:not(:active) { filter: brightness(0.97); }
 button:active { transform: scale(0.96); }
-button:focus-visible { outline: 2.5px solid var(--brand-deep); outline-offset: 2px; }
+button:focus-visible { outline: 2.5px solid var(--pink-deep); outline-offset: 2px; }
 
-.btn-main    { background: var(--brand); color: var(--ink); width: 84px; }
-.btn-admin   { background: var(--brand); color: var(--ink); }
+.btn-main    { background: var(--pink); color: #fff; width: 84px; }
+.btn-admin   { background: var(--pink); color: #fff; }
 .btn-submit  { width: 100%; height: 52px; font-size: 16px; }
-.btn-sub     { background: var(--cream); color: var(--ink); }
+.btn-sub     { background: #fff; color: var(--ink); }
 .btn-add-top {
-    background: #fff;
-    color: var(--brand);
-    padding: 9px 16px;
+    background: var(--pink);
+    color: #fff;
+    padding: 9px 15px;
     font-size: 13px;
     border-radius: 999px;
 }
 
-button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .btn-back {
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--brand);
-    width: 38px;
-    height: 38px;
+    background: #fff;
+    color: var(--ink);
+    width: 40px;
+    height: 40px;
     padding: 0;
     margin-right: 12px;
     border-radius: 10px;
@@ -314,30 +288,29 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 .submit-area { padding: 18px 0 6px; }
 
 /* ==========================================
-   투표 결과 리스트 (후보별 파스텔)
+   투표 결과 리스트
    ========================================== */
-#menuList { display: flex; flex-direction: column; gap: 9px; }
+#menuList { display: flex; flex-direction: column; gap: 11px; }
 
 .menu-item {
     position: relative;
-    padding: 13px 15px;
+    padding: 14px 15px;
     border-radius: var(--radius-sm);
-    background: var(--cream);
-    border: 2px solid transparent;
+    background: #fff;
+    border: 2px solid var(--ink);
     overflow: hidden;
-    transition: border-color 0.15s ease;
 }
 
 .menu-bar {
     position: absolute;
     inset: 0 auto 0 0;
     width: 0;
-    background: var(--fill, var(--sky));
+    background: var(--fill, #ECECEC);
     transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: 0;
 }
 
-.menu-item.voted { border-color: #E89AAC; }
+.menu-item.voted { border-color: var(--pink); }
 
 .menu-row {
     position: relative;
@@ -352,24 +325,15 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 
 .menu-emoji { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; line-height: 1; }
 
-.menu-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--edge, var(--brand));
-    flex-shrink: 0;
-}
-
 .menu-name {
     min-width: 0;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 15px;
     letter-spacing: -0.3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 
 .vote-section { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
@@ -379,46 +343,29 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
     justify-content: center;
     width: 32px;
     height: 32px;
-    color: var(--brand-deep);
-    border: 1.5px solid var(--sky);
+    color: var(--ink);
+    border: 2px solid var(--ink);
     border-radius: 8px;
     background: #fff;
     flex-shrink: 0;
 }
 
-
-.vote-count {
-    font-size: 14px;
-    font-weight: 800;
-    color: var(--text-mid);
-    font-variant-numeric: tabular-nums;
-}
-
 .btn-vote {
     background: #fff;
-    color: var(--brand-deep);
-    border: 1.5px solid var(--brand);
+    color: var(--ink);
+    border: 2px solid var(--ink);
     font-size: 13px;
-    padding: 7px 16px;
+    padding: 6px 15px;
     border-radius: 8px;
 }
 
-.btn-vote.active {
-    background: var(--brand);
-    color: var(--ink);
-    border-color: var(--brand);
-}
-
-.btn-vote.voted {
-    background: #fff;
-    color: var(--text-mid);
-    border-color: var(--line);
-}
+.btn-vote.active { background: var(--pink); color: #fff; }
+.btn-vote.voted { background: #fff; color: var(--text-mid); }
 
 .empty-info, .empty-msg {
     color: var(--text-light);
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     text-align: center;
     padding: 28px 0;
 }
@@ -430,7 +377,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
     display: flex;
     align-items: center;
     gap: 8px;
-    border-top: 1px solid var(--line);
+    border-top: 2px dashed var(--ink);
     padding-top: 14px;
     margin-top: 2px;
 }
@@ -438,8 +385,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 .link-info {
     flex: 1;
     min-width: 0;
-    background: var(--cream);
-    padding: 10px 12px;
+    background: var(--well);
+    border: 2px solid var(--ink);
+    padding: 9px 12px;
     border-radius: 8px;
     font-size: 11px;
     color: var(--text-mid);
@@ -451,7 +399,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 .button-group { display: flex; gap: 6px; flex-shrink: 0; }
 
 .btn-small {
-    background: var(--cream);
+    background: #fff;
     color: var(--ink);
     padding: 0 14px;
     font-size: 13px;
@@ -467,20 +415,21 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 /* ==========================================
    맛집 검색 결과
    ========================================== */
-.search-results-list { max-height: 250px; overflow-y: auto; margin-top: 10px; }
+.search-results-list { max-height: 260px; overflow-y: auto; margin-top: 10px; }
 
 .search-item {
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 8px;
-    background: var(--cream);
+    background: #fff;
+    border: 2px solid var(--ink);
     cursor: pointer;
-    transition: filter 0.2s;
+    transition: background 0.15s;
 }
 
-.search-item:active { filter: brightness(0.96); }
+.search-item:active { background: var(--well); }
 
-.search-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+.search-name { font-size: 15px; font-weight: 800; color: var(--ink); }
 .search-addr { font-size: 12px; color: var(--text-mid); margin-top: 2px; }
 
 /* 지도 */
@@ -488,27 +437,27 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
     width: 100%;
     height: 260px;
     border-radius: var(--radius-sm);
-    border: 1.5px solid var(--line);
+    border: 2px solid var(--ink);
     overflow: hidden;
     margin-bottom: 12px;
-    background: var(--cream);
+    background: var(--well);
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .map-msg { font-size: 13px; color: var(--text-light); padding: 16px; text-align: center; }
-.map-iw { padding: 6px 10px; font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.map-iw { padding: 6px 10px; font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
 
-/* 지역 선택 영역 */
+/* 지역 선택 */
 .loc-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
 .loc-dong { flex: 1 1 100%; }
 
 .loc-select {
     flex: 1;
     min-width: 0;
-    padding: 13px 12px;
-    border: 1.5px solid var(--line);
+    padding: 12px;
+    border: 2px solid var(--ink);
     border-radius: var(--radius-sm);
     font-size: 15px;
     font-family: inherit;
@@ -518,35 +467,25 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
     outline: none;
 }
 
-.loc-select:focus { border-color: var(--brand); }
+.loc-select:focus { border-color: var(--pink); }
 
 .btn-loc { width: 100%; }
+.loc-label { width: 100%; font-size: 12px; font-weight: 600; color: var(--text-mid); margin-top: 2px; }
 
-.loc-label { width: 100%; font-size: 12px; color: var(--text-mid); margin-top: 2px; }
-
-.loc-controls:has(.loc-label) { flex-wrap: wrap; }
-
-.search-head {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-mid);
-    margin: 2px 0 10px;
-}
+.search-head { font-size: 13px; font-weight: 800; color: var(--text-mid); margin: 2px 0 10px; }
 
 /* ==========================================
-   우승 (투표 종료) — 버터
+   우승 (투표 종료)
    ========================================== */
-/* 1위 리스트 행은 회색(은은), 강조는 위 배너에서만 */
-.menu-item.winner { background: #ECECEC; border-color: #D6D6D6; }
+.menu-item.winner { background: var(--yellow); border-color: var(--ink); }
 .menu-item.winner .menu-name { color: var(--ink); }
-.menu-item.winner .vote-count { color: var(--text-mid); }
 
 /* ==========================================
    선택된 후보(임시) 리스트
    ========================================== */
 #temp-count {
-    background: var(--brand);
-    color: var(--ink);
+    background: var(--pink);
+    color: #fff;
     font-weight: 800;
     font-size: 12px;
     padding: 2px 9px;
@@ -569,14 +508,14 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 11px 8px 11px 14px;
-    background: var(--cream);
-    border: 1.5px solid var(--sky);
+    padding: 10px 8px 10px 13px;
+    background: #fff;
+    border: 2px solid var(--ink);
     border-radius: var(--radius-sm);
     animation: slideIn 0.2s ease-out;
 }
 
-.temp-menu-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+.temp-menu-name { font-size: 15px; font-weight: 800; color: var(--ink); }
 .temp-emoji { font-size: 16px; }
 
 .btn-remove-temp {
@@ -592,7 +531,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
     transition: background 0.2s;
 }
 
-.btn-remove-temp:active { background: #F8E7E3; }
+.btn-remove-temp:active { background: #FDE7EE; }
 
 @keyframes slideIn {
     from { opacity: 0; transform: translateX(-10px); }
@@ -600,118 +539,116 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 }
 
 /* 투표 결과 요약 */
-.vote-summary {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-mid);
-    margin-bottom: 2px;
-}
+.vote-summary { font-size: 12px; font-weight: 800; color: var(--text-mid); margin-bottom: 10px; }
 
-/* 종료 후 우승 발표 배너 */
+/* 종료 후 우승 발표 배너 (옐로 박스) */
 .result-banner {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 2px 2px 16px;
-    margin: 0 0 8px;
-    border-bottom: 1.5px solid var(--line);
+    background: var(--yellow);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin: 0 0 12px;
 }
 
-.result-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.result-tag { font-size: 13px; font-weight: 800; color: var(--brand-deep); letter-spacing: 0.3px; }
-.result-name { font-size: 22px; font-weight: 900; color: var(--ink); line-height: 1.25; word-break: break-all; }
+.result-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.result-tag { font-size: 12px; font-weight: 800; color: var(--pink-deep); letter-spacing: 0.3px; }
+.result-name { font-size: 22px; font-weight: 900; color: var(--ink); line-height: 1.2; word-break: break-all; }
 
 .banner-dir {
     display: inline-flex;
     align-items: center;
     gap: 5px;
     flex-shrink: 0;
-    background: var(--mint);
-    color: var(--ink);
-    border: 1.5px solid var(--mint-deep);
+    background: var(--pink);
+    color: #fff;
+    border: 2px solid var(--ink);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
     text-decoration: none;
-    padding: 8px 14px;
-    border-radius: 10px;
+    padding: 8px 13px;
+    border-radius: 9px;
 }
 
-
-/* 시간 연장 패널 (방장, 종료 시) */
-.extend-card { border-color: var(--mint-deep); }
-.extend-msg { margin: 0 0 12px; font-size: 14px; font-weight: 700; color: var(--ink); }
+/* 시간 연장 패널 (방장) */
+.extend-msg { margin: 0 0 12px; font-size: 14px; font-weight: 800; color: var(--ink); }
 .extend-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 .extend-btns button {
-    background: var(--mint);
+    background: var(--yellow);
     color: var(--ink);
-    border: 1.5px solid var(--mint-deep);
-    border-radius: 10px;
-    padding: 10px 16px;
+    border: 2px solid var(--ink);
+    border-radius: 9px;
+    padding: 10px 15px;
     font-size: 14px;
 }
 .extend-btns .extend-keep {
-    background: var(--cream);
-    border-color: var(--line);
-    color: var(--text-mid);
+    background: var(--pink);
+    color: #fff;
     margin-left: auto;
 }
 
-/* 순위 배지 (종료 시 색 점 대신) */
+/* 순위 배지 */
 .rank {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    background: #E6E0D6;
-    color: var(--text-mid);
+    background: #fff;
+    border: 2px solid var(--ink);
+    color: var(--ink);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 900;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }
 
-.rank-1 { background: #9A9A9A; color: #fff; }
+.rank-1 { background: var(--pink); color: #fff; }
 
-/* 토스트 알림 (alert 대체) */
+/* 토스트 알림 */
 .toast {
     position: fixed;
     left: 50%;
     bottom: 28px;
     transform: translateX(-50%) translateY(16px);
-    background: rgba(0, 0, 0, 0.72);
-    color: #fff;
+    background: #fff;
+    color: var(--ink);
+    border: 2px solid var(--ink);
     padding: 11px 18px;
     border-radius: 10px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 800;
     max-width: 88%;
     text-align: center;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
     z-index: 1000;
 }
 
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ==========================================
-   반응형 — 태블릿/데스크탑 (2열)
+   반응형 — 태블릿/데스크탑
    ========================================== */
 @media (min-width: 768px) {
-    html { padding: 22px; }
+    html { padding: 24px; }
     body {
         max-width: 720px;
-        min-height: calc(100vh - 44px);
-        border-radius: 18px;
+        min-height: calc(100vh - 48px);
+        border: 2px solid var(--ink);
+        border-radius: 16px;
+        overflow: hidden;
     }
 
-    .header { padding: 26px 30px; border-radius: 18px 18px 0 0; }
-    .header h1 { font-size: 28px; }
-    #view-add .header h1 { font-size: 23px; }
+    .header { padding: 26px 30px; }
+    .header h1 { font-size: 27px; }
+    #view-add .header h1 { font-size: 22px; }
 
-    .container { padding: 22px 24px 32px; }
+    .container { padding: 24px 26px 34px; }
 
     .submit-area .btn-submit { display: block; max-width: 420px; margin: 0 auto; }
 }

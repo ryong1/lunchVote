@@ -237,7 +237,8 @@ io.on('connection', (socket) => {
                     if (isUrl(e.map)) out.map = e.map;
                     if (isUrl(e.dir)) out.dir = e.dir;
                     if (typeof e.cat === 'string' && e.cat) out.cat = e.cat.slice(0, 40);
-                    if (out.map || out.dir || out.cat) cleanLinks[menu] = out;
+                    if (Number.isFinite(e.lat) && Number.isFinite(e.lng)) { out.lat = e.lat; out.lng = e.lng; }
+                    if (out.map || out.dir || out.cat || out.lat) cleanLinks[menu] = out;
                 }
             });
         }

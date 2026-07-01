@@ -7,7 +7,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/MonadABXY/mona-font/web/mona.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -46,6 +45,11 @@
                     <button onclick="extendVote(10)">+10분</button>
                     <button class="extend-keep" onclick="endVote()">종료하기</button>
                 </div>
+            </div>
+
+            <div class="card" id="vote-map-card" style="display:none;">
+                <h3>후보 위치</h3>
+                <div id="voteMap" class="map-box"></div>
             </div>
 
             <div class="card">
