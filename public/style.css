@@ -451,7 +451,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* 지도 후보 이름표 */
 .map-pin {
-    background: rgba(255, 255, 255, 0.78);
+    background: rgba(237, 233, 134, 0.85); /* 노란색 반투명 */
     border-radius: 6px;
     padding: 1px 6px;
     font-size: 11px;
