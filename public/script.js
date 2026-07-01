@@ -551,7 +551,7 @@ async function searchPlaces() {
         if (!res.ok) throw new Error('서버 오류');
         const data = await res.json();
         let places = data.places || [];
-        if (isRecommend) places = places.slice(0, 5); // 추천은 상위 5곳
+        if (isRecommend) places = places.slice(0, 10); // 추천은 상위 10곳
 
         const head = rect
             ? `<div class="search-head">이 지도 범위의 '${escapeHtml(query)}' ${places.length}곳</div>`

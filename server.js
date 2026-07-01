@@ -51,7 +51,7 @@ app.get('/api/search', async (req, res) => {
     try {
         const url = 'https://dapi.kakao.com/v2/local/search/keyword.json'
             + '?query=' + encodeURIComponent(keyword)
-            + '&category_group_code=FD6&size=12' // FD6 = 음식점
+            + '&category_group_code=FD6&size=15' // FD6 = 음식점
             + (hasRect ? '&rect=' + encodeURIComponent(rect) : '');
         const r = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } });
         if (!r.ok) return res.status(502).json({ error: '카카오 API 응답 오류', status: r.status });
