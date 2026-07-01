@@ -118,6 +118,8 @@ try {
 }
 
 let myVote = null; // 내가 투표한 항목
+let voteFinished = false; // 투표 확정 여부
+let winnerName = '';      // 확정된 1위(들)
 
 // socket.io 클라이언트가 로드된 경우에만 연결한다.
 // (Node 서버가 아닌 VS Code Live Server(:5500) 등으로 열면 /socket.io/socket.io.js 가 없어 io 가 undefined)
@@ -410,6 +412,17 @@ function render(data, isFinished = false) {
     const maxVotes = Math.max(...voteValues, 0);
     const totalVotes = voteValues.reduce((sum, v) => sum + v, 0);
 
+    // 확정 시 우승자 계산 + 공유/링크 표시를 '결과' 모드로
+    const winners = (finished && maxVotes > 0)
+        ? data.candidates.filter((m) => (data.votes[m] || 0) === maxVotes) : [];
+    voteFinished = finished;
+    winnerName = winners.join(', ');
+    const tCard = document.getElementById('timer-card');
+    if (tCard) tCard.classList.toggle('results', finished);
+    const linkEl = document.getElementById('currentLink');
+    if (linkEl) linkEl.textContent = (finished && winnerName)
+        ? `🍽️ 오늘의 메뉴: ${winnerName}` : window.location.href;
+
     // 참여 현황 요약
     const summary = document.createElement('div');
     summary.className = 'vote-summary';
@@ -418,7 +431,6 @@ function render(data, isFinished = false) {
 
     // 확정 시 우승 발표 배너
     if (finished && maxVotes > 0) {
-        const winners = data.candidates.filter((m) => (data.votes[m] || 0) === maxVotes);
         const winnerDir = (winners.length === 1 && data.links && data.links[winners[0]])
             ? data.links[winners[0]].dir : '';
         const banner = document.createElement('div');
@@ -507,18 +519,26 @@ function startLocalTimer(endTime) {
     timerInterval = setInterval(update, 1000);
 }
 
+// 결과 확정 시엔 결과를, 진행 중엔 초대 링크를 공유
+function shareText() {
+    return (voteFinished && winnerName)
+        ? `오늘 점심은 '${winnerName}' 당첨! 🍽️\n${window.location.href}`
+        : window.location.href;
+}
+
 async function copyToClipboard() {
     try {
-        await navigator.clipboard.writeText(window.location.href);
-        showToast('링크가 복사되었어요');
+        await navigator.clipboard.writeText(shareText());
+        showToast(voteFinished ? '결과가 복사되었어요' : '링크가 복사되었어요');
     } catch (err) { showToast('복사에 실패했어요'); }
 }
 
 async function nativeShare() {
+    const payload = (voteFinished && winnerName)
+        ? { title: '오늘 뭐 먹지?', text: `오늘 점심은 '${winnerName}' 당첨! 🍽️`, url: window.location.href }
+        : { title: '오늘 뭐 먹지?', url: window.location.href };
     if (navigator.share) {
-        try {
-            await navigator.share({ title: '오늘 뭐 먹지?', url: window.location.href });
-        } catch (err) { }
+        try { await navigator.share(payload); } catch (err) { }
     } else { copyToClipboard(); }
 }
 
@@ -669,10 +689,23 @@ function initVoteMap() {
 function updateVoteMap(data) {
     lastVoteData = data;
     const cardEl = document.getElementById('vote-map-card');
+    const titleEl = document.getElementById('vote-map-title');
     const links = (data && data.links) || {};
-    const pts = (data && data.candidates ? data.candidates : [])
+    const votes = (data && data.votes) || {};
+    const cands = (data && data.candidates) ? data.candidates : [];
+
+    // 확정되면 1위 식당만, 아니면 후보 전체
+    const finished = !!(data && data.isFinished);
+    const maxVotes = Math.max(0, ...cands.map((n) => votes[n] || 0));
+    const shown = (finished && maxVotes > 0)
+        ? cands.filter((n) => (votes[n] || 0) === maxVotes)
+        : cands;
+
+    const pts = shown
         .map((name) => ({ name, ...(links[name] || {}) }))
         .filter((p) => p.lat && p.lng);
+
+    if (titleEl) titleEl.textContent = finished ? '식당 위치' : '후보 위치';
 
     if (!cardEl) return;
     if (pts.length === 0) { cardEl.style.display = 'none'; return; }

@@ -381,6 +381,13 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     margin-top: 2px;
 }
 
+/* 결과 모드: 카운트다운 숨김 → 점선 구분선 제거 */
+#timer-card.results .share-actions {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0;
+}
+
 .link-info {
     flex: 1;
     min-width: 0;
