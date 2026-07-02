@@ -120,6 +120,7 @@ try {
 let myVote = null; // 내가 투표한 항목
 let voteFinished = false; // 투표 확정 여부
 let winnerName = '';      // 확정된 1위(들)
+let selectedCat = '';     // 검색 카테고리 필터
 
 // socket.io 클라이언트가 로드된 경우에만 연결한다.
 // (Node 서버가 아닌 VS Code Live Server(:5500) 등으로 열면 /socket.io/socket.io.js 가 없어 io 가 undefined)
@@ -216,6 +217,10 @@ function addMenu(name, mapUrl, dirUrl, cat, lat, lng) {
     if (!name) return false;
     if (tempMenus.includes(name)) {
         showToast('이미 추가된 메뉴예요');
+        return false;
+    }
+    if (tempMenus.length >= 10) {
+        showToast('후보는 최대 10개까지 추가할 수 있어요');
         return false;
     }
     tempMenus.push(name);
@@ -347,6 +352,61 @@ function endVote() {
     if (panel) panel.style.display = 'none';
 }
 
+// 🎲 랜덤으로 후보 하나 뽑기 (룰렛 연출)
+let randomSpinning = false;
+function pickRandom() {
+    if (randomSpinning) return;
+    const items = Array.from(document.querySelectorAll('#menuList .menu-item'));
+    if (items.length < 2) return;
+
+    randomSpinning = true;
+    const btn = document.getElementById('randomBtn');
+    if (btn) btn.disabled = true;
+
+    const target = Math.floor(Math.random() * items.length);
+    const totalSteps = items.length * 3 + target; // 세 바퀴 돌고 목표에서 멈춤
+    let step = 0;
+    const clear = () => items.forEach((el) => el.classList.remove('roulette-on'));
+
+    const tick = () => {
+        clear();
+        items[step % items.length].classList.add('roulette-on');
+        step++;
+        if (step > totalSteps) {
+            const nameEl = items[target].querySelector('.menu-name');
+            showToast(`🎲 오늘은 "${nameEl ? nameEl.textContent : ''}" 어때요?`);
+            randomSpinning = false;
+            if (btn) btn.disabled = false;
+            setTimeout(clear, 2500);
+            return;
+        }
+        const delay = 60 + Math.pow(step / totalSteps, 3) * 260; // 점점 느려지게
+        setTimeout(tick, delay);
+    };
+    tick();
+}
+
+// 동점 시 재투표: 공동 1위 후보만으로 새 투표 시작 (방장)
+function startRunoff() {
+    const data = lastVoteData;
+    if (!data || !data.votes || !data.candidates) return;
+    const votes = data.votes;
+    const maxVotes = Math.max(0, ...data.candidates.map((n) => votes[n] || 0));
+    const tied = data.candidates.filter((n) => (votes[n] || 0) === maxVotes);
+    if (tied.length < 2) return;
+
+    const links = {};
+    tied.forEach((m) => { if (data.links && data.links[m]) links[m] = data.links[m]; });
+
+    socket.emit('startVoteSession', {
+        roomId: roomId,
+        menus: tied,
+        seconds: 180, // 재투표 기본 3분
+        links: links,
+    });
+    showToast('공동 1위로 재투표를 시작했어요');
+}
+
 function showPage(pageId) {
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
@@ -402,6 +462,10 @@ function render(data, isFinished = false) {
 
     updateVoteMap(data); // 후보 위치 지도
 
+    // 랜덤 뽑기 버튼: 진행 중 + 후보 2개 이상일 때만
+    const randomBtn = document.getElementById('randomBtn');
+    if (randomBtn) randomBtn.style.display = (!closed && data.candidates.length >= 2) ? '' : 'none';
+
     listDiv.innerHTML = '';
     const sorted = [...data.candidates];
     if (closed && data.votes) {
@@ -426,7 +490,9 @@ function render(data, isFinished = false) {
     // 참여 현황 요약
     const summary = document.createElement('div');
     summary.className = 'vote-summary';
-    summary.textContent = closed ? `투표 종료 · 총 ${totalVotes}표` : `총 ${totalVotes}표`;
+    const pc = data.participants || 0;
+    summary.textContent = (closed ? `투표 종료 · 총 ${totalVotes}표` : `총 ${totalVotes}표`)
+        + (pc ? ` · ${pc}명 참여` : '');
     listDiv.appendChild(summary);
 
     // 확정 시 우승 발표 배너
@@ -440,10 +506,12 @@ function render(data, isFinished = false) {
                 <span class="result-tag">${winners.length > 1 ? '공동 1위' : '최종 1위'}</span>
                 <span class="result-name">👑 ${winners.map(escapeHtml).join(', ')}</span>
             </div>
-            ${winnerDir ? `<a class="banner-dir" href="${escapeHtml(winnerDir)}" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
-                길찾기
-            </a>` : ''}
+            ${(winners.length > 1 && isAdmin)
+                ? `<button class="banner-dir" onclick="startRunoff()">재투표</button>`
+                : (winnerDir ? `<a class="banner-dir" href="${escapeHtml(winnerDir)}" target="_blank" rel="noopener">
+                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                       길찾기
+                   </a>` : '')}
         `;
         listDiv.appendChild(banner);
     }
@@ -546,11 +614,12 @@ async function searchPlaces() {
     const input = document.getElementById('mapSearchInput');
     const locInput = document.getElementById('locationInput');
     const resultsDiv = document.getElementById('search-results');
-    const query = input.value.trim();
+    // 검색어 + 카테고리 필터 결합
+    const query = [input.value.trim(), selectedCat].filter(Boolean).join(' ');
     const location = (locInput ? locInput.value : '').trim();
     if (!query && !location) return;
 
-    const isRecommend = !query; // 검색어 없으면 지역 추천 모드
+    const isRecommend = !query; // 검색어/카테고리 없으면 지역 추천 모드
 
     // 검색어가 있고 지도가 준비됐으면 현재 지도 범위 안에서 검색 (지도는 그대로 유지)
     let rect = '';
@@ -871,6 +940,18 @@ document.getElementById('mapSearchInput').addEventListener('keydown', (e) => {
         searchPlaces();
     }
 });
+
+// 카테고리 필터 칩 → 선택 카테고리로 재검색
+const catFiltersEl = document.getElementById('cat-filters');
+if (catFiltersEl) {
+    catFiltersEl.addEventListener('click', (e) => {
+        const chip = e.target.closest('.cat-chip');
+        if (!chip) return;
+        selectedCat = chip.dataset.cat || '';
+        catFiltersEl.querySelectorAll('.cat-chip').forEach((c) => c.classList.toggle('active', c === chip));
+        searchPlaces();
+    });
+}
 
 // 투표 제한 시간 — 휴대폰 타이머식 분/초 휠 피커
 const WHEEL_ITEM_H = 36;

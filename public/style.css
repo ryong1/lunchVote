@@ -590,6 +590,46 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     text-decoration: none;
     padding: 8px 13px;
     border-radius: 9px;
+    cursor: pointer;
+}
+
+/* 🎲 랜덤 뽑기 버튼 */
+.random-btn {
+    width: 100%;
+    margin-top: 12px;
+    height: 42px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+}
+
+/* 룰렛 진행 중 강조되는 후보 */
+.menu-item.roulette-on {
+    background: var(--yellow);
+    transition: background 0.05s linear;
+}
+.menu-item.roulette-on .menu-bar { opacity: 0; }
+
+/* 검색 카테고리 필터 칩 */
+.cat-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 12px;
+}
+.cat-chip {
+    background: #fff;
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.cat-chip.active {
+    background: var(--pink);
+    color: #fff;
 }
 
 /* 시간 연장 패널 (방장) */

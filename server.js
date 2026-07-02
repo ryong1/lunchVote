@@ -143,7 +143,7 @@ const rooms = {};
 // 입력 제한값
 const LIMITS = {
     minMenus: 2,
-    maxMenus: 20,
+    maxMenus: 10,
     maxMenuLength: 30,
     minMinutes: 1,
     maxMinutes: 180,
@@ -157,9 +157,22 @@ const LIMITS = {
  */
 function getSafeRoomData(room) {
     if (!room) return null;
-    // userVotes(voterId 키)는 브로드캐스트하지 않음 — 내 투표는 initData의 myVote로만 전달
-    const { timeout, adminId, userVotes, ...safeData } = room;
+    // userVotes(voterId 키)·내부 필드 제외, 참여 인원 수 추가
+    const { timeout, adminId, userVotes, id, ...safeData } = room;
+    safeData.participants = id ? countPeople(id) : 0;
     return safeData;
+}
+
+/** 방에 접속 중인 '사람' 수 (같은 voterId의 여러 탭은 1명으로) */
+function countPeople(roomId) {
+    const ids = io.sockets.adapter.rooms.get(roomId);
+    if (!ids) return 0;
+    const voters = new Set();
+    for (const sid of ids) {
+        const s = io.sockets.sockets.get(sid);
+        if (s) voters.add(s.data.voterId || sid);
+    }
+    return voters.size;
 }
 
 /**
@@ -219,6 +232,7 @@ io.on('connection', (socket) => {
 
         if (!rooms[roomId]) {
             rooms[roomId] = {
+                id: roomId,
                 candidates: [],
                 votes: {},
                 userVotes: {},
@@ -377,22 +391,22 @@ io.on('connection', (socket) => {
         const room = roomId && rooms[roomId];
         if (!room) return;
 
-        if (room.adminId !== socket.id) return;
-
-        // 방에 남아있는 다른 소켓을 찾아 방장 인계
-        const remaining = (await io.in(roomId).fetchSockets()).filter((s) => s.id !== socket.id);
-
-        if (remaining.length > 0) {
-            const nextAdmin = remaining[0];
-            room.adminId = nextAdmin.id;
-            io.to(nextAdmin.id).emit('adminGranted');
-            console.log(`[${roomId}] 방장 인계: ${socket.id} -> ${nextAdmin.id}`);
-        } else {
-            // 아무도 없으면 방과 타이머 정리 (메모리 누수 방지)
-            if (room.timeout) clearTimeout(room.timeout);
-            delete rooms[roomId];
-            console.log(`[${roomId}] 방 정리됨`);
+        // 방장이 나갔으면 인계
+        if (room.adminId === socket.id) {
+            const remaining = (await io.in(roomId).fetchSockets()).filter((s) => s.id !== socket.id);
+            if (remaining.length > 0) {
+                room.adminId = remaining[0].id;
+                io.to(remaining[0].id).emit('adminGranted');
+                console.log(`[${roomId}] 방장 인계: ${socket.id} -> ${remaining[0].id}`);
+            } else {
+                if (room.timeout) clearTimeout(room.timeout);
+                delete rooms[roomId];
+                console.log(`[${roomId}] 방 정리됨`);
+                return;
+            }
         }
+        // 참여 인원 수 갱신
+        io.to(roomId).emit('updateData', getSafeRoomData(room));
     });
 });
 

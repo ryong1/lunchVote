@@ -55,6 +55,7 @@
             <div class="card">
                 <h3>투표 결과</h3>
                 <div id="menuList"></div>
+                <button id="randomBtn" class="btn-sub random-btn" onclick="pickRandom()" style="display:none;">🎲 랜덤으로 골라줘</button>
             </div>
             
             </main>
@@ -78,6 +79,17 @@
                 <div class="input-row">
                     <input type="text" id="mapSearchInput" placeholder="음식·식당 이름">
                     <button onclick="searchPlaces()" class="btn-main">검색</button>
+                </div>
+                <div id="cat-filters" class="cat-filters">
+                    <button type="button" class="cat-chip active" data-cat="">전체</button>
+                    <button type="button" class="cat-chip" data-cat="한식">한식</button>
+                    <button type="button" class="cat-chip" data-cat="일식">일식</button>
+                    <button type="button" class="cat-chip" data-cat="중식">중식</button>
+                    <button type="button" class="cat-chip" data-cat="양식">양식</button>
+                    <button type="button" class="cat-chip" data-cat="치킨">치킨</button>
+                    <button type="button" class="cat-chip" data-cat="분식">분식</button>
+                    <button type="button" class="cat-chip" data-cat="카페">카페</button>
+                    <button type="button" class="cat-chip" data-cat="고기">고기</button>
                 </div>
                 <div id="map" class="map-box"><div class="map-msg">지도를 불러오는 중...</div></div>
                 <button type="button" class="btn-sub area-btn" onclick="searchThisArea()">이 지역에서 검색</button>
